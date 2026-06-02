@@ -1,0 +1,1 @@
+../../../aegisq/.shared-agents/qa-team-lead.md

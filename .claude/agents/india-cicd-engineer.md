@@ -1,0 +1,1 @@
+../../../aegisq/.shared-agents/india-cicd-engineer.md

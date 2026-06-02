@@ -1,0 +1,1 @@
+../../../aegisq/.shared-agents/team-india-lead.md
