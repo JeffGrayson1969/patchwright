@@ -1,0 +1,56 @@
+name: Bug report
+description: A defect in PatchWright behavior
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. **For security vulnerabilities, use [SECURITY.md](../blob/main/SECURITY.md) instead — do not open a public issue.**
+  - type: input
+    id: version
+    attributes:
+      label: PatchWright version
+      description: Output of `patchwright --version`
+      placeholder: "0.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: ["Linux x86_64", "Linux ARM64", "macOS (Apple Silicon)", "macOS (Intel)", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12.5"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands or fixture to reproduce
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the relevant journal entries if applicable (`patchwright journal --case <id>`)
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs, screenshots, related issues

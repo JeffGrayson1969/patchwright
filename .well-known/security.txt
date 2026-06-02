@@ -1,0 +1,10 @@
+# PatchWright security disclosure (RFC 9116)
+# https://github.com/JeffGrayson1969/patchwright/blob/main/SECURITY.md
+
+Contact: https://github.com/JeffGrayson1969/patchwright/security/advisories/new
+Contact: mailto:security@patchwright.dev
+Expires: 2027-06-02T00:00:00Z
+Preferred-Languages: en
+Canonical: https://github.com/JeffGrayson1969/patchwright/blob/main/.well-known/security.txt
+Policy: https://github.com/JeffGrayson1969/patchwright/blob/main/SECURITY.md
+Acknowledgments: https://github.com/JeffGrayson1969/patchwright/blob/main/SECURITY.md#hall-of-fame

@@ -1,0 +1,27 @@
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "RUF",    # ruff-specific
+    "SIM",    # flake8-simplify
+    "PL",     # pylint subset
+]
+ignore = [
+    "PLR0913",  # too many args (Pydantic models trip this trivially)
+    "PLR2004",  # magic numbers (tests use literals on purpose)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["PLR2004", "S101"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

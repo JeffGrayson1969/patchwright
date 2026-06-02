@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a new capability or enhancement
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: check the [PRD](../blob/main/PRD.md) §3.2 non-goals and §13 roadmap. If your idea conflicts with a non-goal or belongs to a later phase, please say so explicitly.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve? Who hits it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: input
+    id: prd_ref
+    attributes:
+      label: PRD reference
+      description: FR-* / NFR-* / Tn ID this maps to, or "new requirement"
+      placeholder: "FR-PT-5"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+      description: What this proposal explicitly does not change
