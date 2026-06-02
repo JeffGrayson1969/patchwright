@@ -18,13 +18,13 @@ Read `PRD.md` for vision, personas, functional requirements (FR-*), non-function
 - **What exists today:** PRD, README, license, this file. No code yet.
 
 ### P0 exit criteria (PRD §13)
-- [ ] Repo, license, code of conduct, security.txt
-- [ ] Orchestrator skeleton
-- [ ] One trivial agent
-- [ ] 1 OSS maintainer design partner identified
-- [ ] Hello-world case completes end-to-end
+- [x] Repo, license, code of conduct, security.txt
+- [x] Orchestrator skeleton
+- [x] One trivial agent (two, actually — `noop_triage` + `noop_closer`)
+- [ ] 1 OSS maintainer design partner identified ← human task
+- [x] Hello-world case completes end-to-end (`uv run patchwright hello`)
 
-When you finish a P0 item, update the checklist above in the same commit.
+When the design-partner item closes, swap this checklist for the P1 checklist (PRD §13 → FR-IN-1/2, FR-TR-1/2/3, FR-RP-1/2, FR-PT-1/2/3, FR-HR-1/2/3, FR-PV-1/2/3, FR-CF-1/2, NFR-S-1/4/7/8/10).
 
 ## Non-negotiable architectural commitments
 

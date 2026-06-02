@@ -1,0 +1,43 @@
+name: DCO
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dco-check:
+    name: DCO sign-off check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify every commit is DCO-signed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # All commits introduced by the PR
+          commits=$(git log --no-merges --format="%H" "$BASE_SHA..$HEAD_SHA")
+          missing=0
+          for c in $commits; do
+            msg=$(git log -1 --format=%B "$c")
+            author=$(git log -1 --format='%an <%ae>' "$c")
+            if ! grep -E "^Signed-off-by: " <<<"$msg" >/dev/null; then
+              echo "::error::Commit $c by $author is missing 'Signed-off-by:'"
+              missing=$((missing+1))
+            fi
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo
+            echo "Use 'git commit -s' or 'git rebase --signoff' to fix. See CONTRIBUTING.md."
+            exit 1
+          fi
+          echo "All commits DCO-signed."

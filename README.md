@@ -89,7 +89,7 @@ See [PRD §10](PRD.md#10-architecture) for the full architectural rationale.
 | **P3 — Enterprise & coordinator adapters** | VINCE, Web UI, Slack/Linear, Jira/GitLab/Bitbucket, multi-repo coordinated patch campaigns | Planned |
 | **P4 — Discovery hooks + Shield tier GA** | Optional IronCurtain-style discovery; commercial Shield tier productized | Planned |
 
-See [`phase0-spike-plan.md`](phase0-spike-plan.md) and [`phase1-work-plan.md`](phase1-work-plan.md) for the detailed work breakdowns.
+See [`phase0-spike-plan.md`](phase0-spike-plan.md) for the current phase work breakdown. The P1 work plan and the standards review will land when Phase 0 closes.
 
 ---
 
@@ -125,7 +125,7 @@ PatchWright integrates with — does not replace — existing standards:
 - **Emitted:** CSAF 2.0, OpenVEX, MITRE CVE Services records, in-toto attestations
 - **Coordination:** CERT/CC VINCE, security.txt (RFC 9116), Dependency-Track
 
-See [`standards-deep-read.md`](standards-deep-read.md) for the detailed standards review.
+The detailed standards review (`standards-deep-read.md`) is planned for Phase 1.
 
 ---
 
