@@ -1,1 +1,13 @@
 .claude/settings.local.json
+
+# Symlinked agents (point to user-level definitions in ~/.claude/agents)
+.claude/agents/commit-ready.md
+.claude/agents/delta-reviewer.md
+.claude/agents/echo-pentester.md
+.claude/agents/india-cicd-engineer.md
+.claude/agents/india-infra-engineer.md
+.claude/agents/qa-engineer.md
+.claude/agents/qa-team-lead.md
+.claude/agents/security-review-delta-lead.md
+.claude/agents/security-review-echo-lead.md
+.claude/agents/team-india-lead.md

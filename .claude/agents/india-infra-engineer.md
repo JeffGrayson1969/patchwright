@@ -1,1 +1,0 @@
-../../../aegisq/.shared-agents/india-infra-engineer.md

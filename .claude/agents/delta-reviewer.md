@@ -1,1 +1,0 @@
-../../../aegisq/.shared-agents/delta-reviewer.md
