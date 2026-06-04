@@ -89,7 +89,7 @@ See [PRD §10](PRD.md#10-architecture) for the full architectural rationale.
 | **P3 — Enterprise & coordinator adapters** | VINCE, Web UI, Slack/Linear, Jira/GitLab/Bitbucket, multi-repo coordinated patch campaigns | Planned |
 | **P4 — Discovery hooks + Shield tier GA** | Optional IronCurtain-style discovery; commercial Shield tier productized | Planned |
 
-See [`phase0-spike-plan.md`](phase0-spike-plan.md) for the current phase work breakdown. The P1 work plan and the standards review will land when Phase 0 closes.
+See [`phase0-spike-plan.md`](phase0-spike-plan.md) for the closed P0 spike, and [`phase1-work-plan.md`](phase1-work-plan.md) for the active P1 work breakdown. The standards review lands during P1.
 
 ---
 
