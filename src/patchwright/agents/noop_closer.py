@@ -18,7 +18,7 @@ class _NoopCloser:
     name: str = "noop_closer"
     handles_state: str = str(State.TRIAGED)
 
-    def __call__(self, case: Case, store: ReadOnlyArtifactStore) -> AgentResult:  # noqa: ARG002
+    def __call__(self, case: Case, store: ReadOnlyArtifactStore) -> AgentResult:
         del store
         return AgentResult(
             transition=Transition(

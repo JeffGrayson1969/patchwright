@@ -20,7 +20,7 @@ class _NoopTriage:
     name: str = "noop_triage"
     handles_state: str = str(State.INTAKE)
 
-    def __call__(self, case: Case, store: ReadOnlyArtifactStore) -> AgentResult:  # noqa: ARG002
+    def __call__(self, case: Case, store: ReadOnlyArtifactStore) -> AgentResult:
         del store  # P0 noop_triage emits a fixed payload — no artifact read needed.
         triage_packet = {
             "case_id": case.id,
