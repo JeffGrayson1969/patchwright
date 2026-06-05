@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "case_id": "fixture-cwe22-path-traversal",
+  "summary": "Wrap open() with safe_path to prevent path traversal",
+  "operations": [
+    {
+      "type": "insert_import",
+      "file": "vulnerable.py",
+      "module": "patchwright_helpers",
+      "names": ["safe_path"]
+    },
+    {
+      "type": "wrap_call_with_validator",
+      "file": "vulnerable.py",
+      "call_name": "open",
+      "wrapper": "safe_path",
+      "arg_index": 0
+    }
+  ],
+  "rationale": "User-supplied filename was passed directly to open(). Adding a safe_path helper that resolves the path under a fixed base and rejects any escape (../, absolute, symlink-out) closes CWE-22. The wrap is positional on arg 0 so a future call with mode='r' as kwarg is unaffected."
+}

@@ -21,6 +21,15 @@ ignore = [
 [lint.per-file-ignores]
 "tests/*" = ["PLR2004", "S101"]
 
+# Fixture corpus is intentionally vulnerable / imperfect code; the codemod
+# operates on it. Don't lint it.
+"tests/fixtures/patch_corpus/**" = ["ALL"]
+
+[lint.extend-per-file-ignores]
+# Generated expected.py outputs include intentional code-smells (e.g. unused
+# pickle import in the cwe502 fixture per its plan rationale).
+"tests/fixtures/patch_corpus/*/expected.py" = ["ALL"]
+
 [format]
 quote-style = "double"
 indent-style = "space"

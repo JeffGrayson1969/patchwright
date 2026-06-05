@@ -1,0 +1,19 @@
+{
+  "schema_version": "1",
+  "case_id": "fixture-cwe502-deserialization",
+  "summary": "Replace pickle.loads with json.loads to fix insecure deserialization",
+  "operations": [
+    {
+      "type": "insert_import",
+      "file": "vulnerable.py",
+      "module": "json"
+    },
+    {
+      "type": "replace_function_body",
+      "file": "vulnerable.py",
+      "function_qualname": "load_config",
+      "new_body": "return json.loads(data.decode(\"utf-8\"))\n"
+    }
+  ],
+  "rationale": "pickle.loads on untrusted input is a code-execution sink (CWE-502). Swapped to json.loads, which cannot construct arbitrary objects. The pickle import is now unused but left in place — its removal is unrelated to the fix and would be handled by a follow-up tidy."
+}

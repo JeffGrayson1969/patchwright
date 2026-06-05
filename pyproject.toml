@@ -26,6 +26,7 @@ dependencies = [
     "anthropic>=0.92",
     "openai>=1.58",
     "keyring>=25",
+    "libcst>=1.5",
 ]
 
 [project.urls]
