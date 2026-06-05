@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import cast
 
 from patchwright.core.artifacts import ReadOnlyArtifactStore
 from patchwright.core.fsm import State
@@ -70,11 +71,17 @@ class TriageAgent:
             "Produce a TriagePacket describing this report."
         )
 
-        packet = self.provider.complete(
-            system=SYSTEM_PROMPT,
-            user=user_message,
-            response_schema=TriagePacket,
-            max_output_tokens=4096,
+        # The LLMProvider Protocol returns T | str (the str branch is for the
+        # no-schema path); when we pass a schema, the provider always returns
+        # an instance of it (Pydantic validates).
+        packet = cast(
+            "TriagePacket",
+            self.provider.complete(
+                system=SYSTEM_PROMPT,
+                user=user_message,
+                response_schema=TriagePacket,
+                max_output_tokens=4096,
+            ),
         )
 
         # Defensive: packet.case_id is LLM-emitted; reject if it doesn't match.
