@@ -9,7 +9,7 @@ model-provider call is a plugin." This Protocol is that seam.
 
 from __future__ import annotations
 
-from typing import Protocol, TypeVar, overload, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -48,26 +48,6 @@ class LLMProvider(Protocol):
     model: str
     """Model identifier as understood by the provider (e.g. 'claude-opus-4-7',
     'gpt-4o', 'llama3:70b-instruct')."""
-
-    @overload
-    def complete(
-        self,
-        *,
-        system: str,
-        user: str,
-        response_schema: type[T],
-        max_output_tokens: int = ...,
-    ) -> T: ...
-
-    @overload
-    def complete(
-        self,
-        *,
-        system: str,
-        user: str,
-        response_schema: None = ...,
-        max_output_tokens: int = ...,
-    ) -> str: ...
 
     def complete(
         self,

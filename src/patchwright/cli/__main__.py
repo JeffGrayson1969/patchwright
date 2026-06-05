@@ -5,7 +5,7 @@ import sys
 from collections.abc import Sequence
 
 from patchwright import __version__
-from patchwright.cli import hello
+from patchwright.cli import hello, init
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -14,6 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     hello.register(sub)
+    init.register(sub)
 
     return p
 
