@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "case_id": "fixture-cwe89-sqli",
+  "summary": "Use parameterized query to fix SQL injection in get_user",
+  "operations": [
+    {
+      "type": "replace_function_body",
+      "file": "vulnerable.py",
+      "function_qualname": "get_user",
+      "new_body": "cursor.execute(\"SELECT * FROM users WHERE username = ?\", (username,))\nreturn cursor.fetchone()\n"
+    }
+  ],
+  "test_spec": {
+    "file": "tests/test_get_user.py",
+    "test_function_name": "test_get_user_uses_parameterized_query",
+    "target_import": "vulnerable",
+    "target_callable": "get_user",
+    "setup_code": "import sqlite3\nconn = sqlite3.connect(\":memory:\")\ncursor = conn.cursor()\ncursor.execute(\"CREATE TABLE users (username TEXT)\")\ncursor.execute(\"INSERT INTO users VALUES (?)\", (\"alice\",))",
+    "call_expr": "target(cursor, \"x' OR '1'='1\")",
+    "expects": "returns_none"
+  },
+  "rationale": "User input was interpolated into the SQL string. Replaced with a parameterized query (qmark style) so the value is bound, not parsed as SQL. A test exercising the classic OR-1=1 payload now returns None (no match) instead of returning a row, proving the injection is closed."
+}

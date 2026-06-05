@@ -1,0 +1,9 @@
+--- a/vulnerable.py
++++ b/vulnerable.py
+@@ -2,5 +2,5 @@
+ 
+ 
+ def get_user(cursor, username):
+-    cursor.execute(f"SELECT * FROM users WHERE username = '{username}'")
++    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+     return cursor.fetchone()
