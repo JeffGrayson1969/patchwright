@@ -23,6 +23,9 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=2.7",
+    "anthropic>=0.92",
+    "openai>=1.58",
+    "keyring>=25",
 ]
 
 [project.urls]
@@ -36,6 +39,11 @@ patchwright = "patchwright.cli.__main__:main"
 [project.entry-points."patchwright.plugins.agents"]
 noop_triage = "patchwright.agents.noop_triage:agent"
 noop_closer = "patchwright.agents.noop_closer:agent"
+
+[project.entry-points."patchwright.plugins.llm_providers"]
+anthropic = "patchwright.providers.anthropic_provider:AnthropicProvider"
+openai_compat = "patchwright.providers.openai_compat:OpenAICompatProvider"
+mcp_sampling = "patchwright.providers.mcp_sampling:MCPSamplingProvider"
 
 [dependency-groups]
 dev = [

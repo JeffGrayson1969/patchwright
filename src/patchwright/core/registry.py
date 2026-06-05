@@ -47,7 +47,11 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Registry with the P0 built-in agents wired explicitly.
+    """Registry with the P0 noop agents wired explicitly.
+
+    Used by the `patchwright hello` demo and by tests that want a
+    deterministic, LLM-free FSM walk. For real triage, use
+    `triage_registry(provider)` instead.
 
     Entry-point discovery still works (see pyproject.toml), but tests and the
     hello demo do not depend on installed distribution metadata.
@@ -57,5 +61,20 @@ def default_registry() -> Registry:
 
     r = Registry()
     r.register(noop_triage)
+    r.register(noop_closer)
+    return r
+
+
+def triage_registry(provider: object) -> Registry:
+    """Registry wired with the real LLM-backed triage agent.
+
+    The provider must satisfy patchwright.core.llm.LLMProvider. We accept
+    `object` here to avoid an import-cycle into core/llm at module load.
+    """
+    from patchwright.agents.noop_closer import agent as noop_closer  # noqa: PLC0415
+    from patchwright.agents.triage import TriageAgent  # noqa: PLC0415
+
+    r = Registry()
+    r.register(TriageAgent(provider=provider))  # type: ignore[arg-type]
     r.register(noop_closer)
     return r
