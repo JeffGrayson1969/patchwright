@@ -30,11 +30,15 @@ def _apply_entry(case: Case | None, entry: JournalEntry, _store: ArtifactStore) 
     if entry.kind == "case_opened":
         if case is not None:
             raise ValueError(f"duplicate case_opened for case_id {entry.case_id}")
+        initial_artifacts: list[Artifact] = []
+        raw_report_payload = entry.payload.get("raw_report")
+        if raw_report_payload is not None:
+            initial_artifacts.append(Artifact.model_validate(raw_report_payload))
         return Case(
             id=entry.case_id,
             state=entry.payload["initial_state"],
             created_at=entry.payload["created_at"],
-            artifacts=[],
+            artifacts=initial_artifacts,
             last_seq=entry.seq,
             last_hash=entry.content_hash,
         )
@@ -114,8 +118,6 @@ def open_case(
         seq=0,
     )
     case = _apply_entry(None, entry, store)
-    # The raw_report artifact ref is recorded in the case_opened payload but not
-    # auto-attached to Case.artifacts (it's the origin, not a downstream artifact).
     return case
 
 
