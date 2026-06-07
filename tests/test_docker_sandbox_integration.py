@@ -7,11 +7,14 @@ a fixture PoC inside Docker and no network egress is allowed by default.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import time
 from pathlib import Path
 
 import pytest
 
-from patchwright.core.sandbox import Mount
+from patchwright.core.sandbox import Mount, NetworkPolicy
 from patchwright.sandboxes.docker import DockerSandbox
 
 pytestmark = pytest.mark.docker
@@ -43,10 +46,74 @@ def test_default_network_blocks_egress(docker_sandbox: DockerSandbox) -> None:
     """NFR-S-2: default NetworkPolicy(mode="none") blocks egress."""
     result = docker_sandbox.run(
         image="alpine:3.20",
-        cmd=["sh", "-c", "wget -q --timeout=5 -O- https://example.com"],
+        cmd=["sh", "-c", "wget -q --timeout=5 -O- https://example.com 2>&1; true"],
         timeout=30.0,
     )
-    assert result.exit_code != 0  # wget should fail without network
+    assert result.exit_code != 0
+    combined = result.stdout + result.stderr
+    assert any(s in combined.lower() for s in ("resolve", "unreachable", "bad address", "network"))
+
+
+@pytest.mark.skipif(
+    os.environ.get("CI_NO_EGRESS") == "1",
+    reason="egress not available in this environment",
+)
+def test_bridge_network_allows_egress(docker_sandbox: DockerSandbox) -> None:
+    """Positive control: NetworkPolicy(mode="bridge") permits egress.
+
+    Paired with test_default_network_blocks_egress so the two tests together
+    prove the policy discriminates rather than always passing or always failing.
+    """
+    result = docker_sandbox.run(
+        image="alpine:3.20",
+        cmd=["sh", "-c", "wget -q --timeout=10 -O- https://example.com"],
+        timeout=30.0,
+        network_policy=NetworkPolicy(mode="bridge"),
+    )
+    assert result.exit_code == 0
+    assert result.network_enabled is True
+
+
+def test_timeout_kills_container(docker_sandbox: DockerSandbox) -> None:
+    """Regression: a timed-out run must not leave an orphan container running."""
+    image = "alpine:3.20"
+
+    # Snapshot running containers for this image before the run.
+    before = set(
+        subprocess.run(
+            ["docker", "ps", "-q", "--filter", f"ancestor={image}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.split()
+    )
+
+    result = docker_sandbox.run(
+        image=image,
+        cmd=["sleep", "9999"],
+        timeout=2.0,
+    )
+
+    assert result.timed_out is True
+
+    # docker stop --time=0 is async; poll briefly before asserting.
+    # Snapshot is image-filtered so unrelated containers don't pollute the check.
+    deadline = time.monotonic() + 5.0
+    after: set[str] = set()
+    while time.monotonic() < deadline:
+        after = set(
+            subprocess.run(
+                ["docker", "ps", "-q", "--filter", f"ancestor={image}"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.split()
+        )
+        if after <= before:
+            break
+        time.sleep(0.5)
+
+    assert after <= before, f"orphan containers still running: {after - before}"
 
 
 def test_mount_passes_file_into_container(docker_sandbox: DockerSandbox, tmp_path: Path) -> None:

@@ -32,7 +32,7 @@ Already in `main` — these are the seams P1 extends, not refactors:
 - **`keyring`** (OS keychain — NFR-S-10)
 - **`age`** / **`sops`** binary dep for journal encryption (T4)
 - **`PyGithub`** or **`gh`** subprocess (GitHub RepoAdapter)
-- **`docker`** Python SDK (M3 sandbox dev backend)
+- **`docker` CLI via subprocess** (M3 sandbox dev backend — no Python SDK dep)
 - **`pyyaml`** (`patchwright.yaml`)
 - **`cosign`** binary (M8 release signing)
 
