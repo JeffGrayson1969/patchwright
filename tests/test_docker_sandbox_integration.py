@@ -46,7 +46,7 @@ def test_default_network_blocks_egress(docker_sandbox: DockerSandbox) -> None:
     """NFR-S-2: default NetworkPolicy(mode="none") blocks egress."""
     result = docker_sandbox.run(
         image="alpine:3.20",
-        cmd=["sh", "-c", "wget -q --timeout=5 -O- https://example.com 2>&1; true"],
+        cmd=["sh", "-c", "wget -q --timeout=5 -O- https://example.com 2>&1"],
         timeout=30.0,
     )
     assert result.exit_code != 0

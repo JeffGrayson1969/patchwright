@@ -178,53 +178,58 @@ def _run_popen(
     cid_path: str,
 ) -> RunResult:
     """Spawn docker, capture bounded output, handle timeout."""
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    assert proc.stdout is not None and proc.stderr is not None  # set above via PIPE
+    # `with Popen(...)` ensures __exit__ closes stdout/stderr pipes and reaps the
+    # subprocess on every return path — otherwise pytest -W error::ResourceWarning fails.
+    with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+        assert proc.stdout is not None and proc.stderr is not None  # set above via PIPE
 
-    stdout_buf: bytearray = bytearray()
-    stderr_buf: bytearray = bytearray()
+        stdout_buf: bytearray = bytearray()
+        stderr_buf: bytearray = bytearray()
 
-    t_out = threading.Thread(
-        target=_read_stream, args=(proc.stdout, stdout_buf, max_output_bytes), daemon=True
-    )
-    t_err = threading.Thread(
-        target=_read_stream, args=(proc.stderr, stderr_buf, max_output_bytes), daemon=True
-    )
-    t_out.start()
-    t_err.start()
+        t_out = threading.Thread(
+            target=_read_stream, args=(proc.stdout, stdout_buf, max_output_bytes), daemon=True
+        )
+        t_err = threading.Thread(
+            target=_read_stream, args=(proc.stderr, stderr_buf, max_output_bytes), daemon=True
+        )
+        t_out.start()
+        t_err.start()
 
-    try:
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        _kill_container(docker_binary, cid_path)
-        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            _kill_container(docker_binary, cid_path)
+            proc.kill()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=5)
+            t_out.join(timeout=5)
+            t_err.join(timeout=5)
+            return RunResult(
+                exit_code=-1,
+                stdout=stdout_buf.decode("utf-8", errors="replace"),
+                stderr=stderr_buf.decode("utf-8", errors="replace"),
+                timed_out=True,
+                truncated=len(stdout_buf) >= max_output_bytes
+                or len(stderr_buf) >= max_output_bytes,
+                image=image,
+                cmd=tuple(cmd),
+                env=dict(env or {}),
+                network_enabled=network_enabled,
+            )
+
         t_out.join(timeout=5)
         t_err.join(timeout=5)
         return RunResult(
-            exit_code=-1,
+            exit_code=proc.returncode,
             stdout=stdout_buf.decode("utf-8", errors="replace"),
             stderr=stderr_buf.decode("utf-8", errors="replace"),
-            timed_out=True,
+            timed_out=False,
             truncated=len(stdout_buf) >= max_output_bytes or len(stderr_buf) >= max_output_bytes,
             image=image,
             cmd=tuple(cmd),
             env=dict(env or {}),
             network_enabled=network_enabled,
         )
-
-    t_out.join(timeout=5)
-    t_err.join(timeout=5)
-    return RunResult(
-        exit_code=proc.returncode,
-        stdout=stdout_buf.decode("utf-8", errors="replace"),
-        stderr=stderr_buf.decode("utf-8", errors="replace"),
-        timed_out=False,
-        truncated=len(stdout_buf) >= max_output_bytes or len(stderr_buf) >= max_output_bytes,
-        image=image,
-        cmd=tuple(cmd),
-        env=dict(env or {}),
-        network_enabled=network_enabled,
-    )
 
 
 def _read_stream(stream: IO[bytes], buf: bytearray, cap: int) -> None:
