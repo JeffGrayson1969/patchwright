@@ -19,6 +19,7 @@ import tempfile
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import IO
 
 from patchwright.core.sandbox import (
     Mount,
@@ -178,6 +179,7 @@ def _run_popen(
 ) -> RunResult:
     """Spawn docker, capture bounded output, handle timeout."""
     proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert proc.stdout is not None and proc.stderr is not None  # set above via PIPE
 
     stdout_buf: bytearray = bytearray()
     stderr_buf: bytearray = bytearray()
@@ -225,18 +227,18 @@ def _run_popen(
     )
 
 
-def _read_stream(stream: object, buf: bytearray, cap: int) -> None:
+def _read_stream(stream: IO[bytes], buf: bytearray, cap: int) -> None:
     """Read from stream into buf up to cap bytes, then drain to unblock the process."""
     while True:
         remaining = cap - len(buf)
         if remaining <= 0:
             break
-        chunk = stream.read(min(4096, remaining))  # type: ignore[union-attr]
+        chunk = stream.read(min(4096, remaining))
         if not chunk:
             break
         buf += chunk
     with contextlib.suppress(Exception):
-        stream.read()  # type: ignore[union-attr]
+        stream.read()
 
 
 def _kill_container(docker_binary: str, cid_path: str) -> None:
