@@ -82,6 +82,9 @@ minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config"
 filterwarnings = ["error"]
+markers = [
+    "docker: requires a running docker daemon; auto-skipped when unavailable",
+]
 
 [tool.coverage.run]
 source = ["src/patchwright"]
