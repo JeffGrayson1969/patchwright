@@ -40,8 +40,7 @@ def test_echo_in_alpine(docker_sandbox: DockerSandbox) -> None:
 
 
 def test_default_network_blocks_egress(docker_sandbox: DockerSandbox) -> None:
-    """NFR-S-2: without network=True, the container cannot reach the outside
-    world. wget against an external host must fail."""
+    """NFR-S-2: default NetworkPolicy(mode="none") blocks egress."""
     result = docker_sandbox.run(
         image="alpine:3.20",
         cmd=["sh", "-c", "wget -q --timeout=5 -O- https://example.com"],
