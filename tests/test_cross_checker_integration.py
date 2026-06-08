@@ -159,3 +159,72 @@ def test_cross_checker_refuses_wrong_fixture_plan_for_cwe22(tmp_path: Path) -> N
         f"Cross-checker APPROVED a plan that addresses the WRONG vulnerability. "
         f"T9 mitigation has failed. Transition reason: {result.transition.reason!r}"
     )
+
+
+# --------------------------------------------------------- intent-mismatch control
+
+
+@pytest.mark.integration
+@skip_no_key
+def test_cross_checker_refuses_wrong_fix_class_for_correct_symbol(tmp_path: Path) -> None:
+    """T9 negative control: right symbol, wrong fix class.
+
+    The plan targets vulnerable.py::read_file (the correct CWE-22 symbol)
+    but applies a SQL-parameterisation body — clearly not a path-containment fix.
+    The cross-checker must detect the intent mismatch even though the target
+    symbol matches the vulnerability report.
+
+    Synthesised plan avoids cross-fixture coupling; the new_body is deliberately
+    non-path-containment to make the mismatch unambiguous to the LLM.
+    """
+    case_id = "integ-cc-cwe22-intent-mismatch"
+    packet = _cwe22_triage_packet(case_id)
+
+    # Correct symbol (read_file), wrong fix class (SQL parameterisation, not path containment).
+    wrong_intent_plan = PatchPlan(
+        case_id=case_id,
+        schema_version="1",
+        summary="Parameterise SQL query in read_file to prevent injection",
+        operations=[
+            {  # type: ignore[arg-type]
+                "type": "replace_function_body",
+                "file": "vulnerable.py",
+                "function_qualname": "read_file",
+                "new_body": (
+                    "cursor.execute('SELECT content FROM files WHERE name = ?', (filename,))\n"
+                    "return cursor.fetchone()[0]"
+                ),
+            }
+        ],
+        rationale=(
+            "Replaces string interpolation with a parameterised SQL query to prevent "
+            "SQL injection in read_file. Uses cursor.execute with bound parameters."
+        ),
+    )
+
+    case, store = _make_case_with_packet_and_plan(tmp_path, case_id, packet, wrong_intent_plan)
+
+    provider = AnthropicProvider()
+    agent = CrossCheckerAgent(provider=provider)
+    result = agent(case, store.read_only())
+
+    assert result.transition.from_state == str(State.PATCH_PROPOSED)
+    # Wrong fix class must be refused even though the symbol matches.
+    assert result.transition.to_state == str(State.REJECTED), (
+        f"Cross-checker APPROVED a SQL-parameterisation fix for a path-traversal vulnerability. "
+        f"T9 intent-mismatch detection has failed. Transition reason: {result.transition.reason!r}"
+    )
+
+    # Spot-check reasoning references the mismatch in some form.
+    verdict_bytes, _ = result.new_artifacts[0]
+    from patchwright.models.cross_check import CrossCheckVerdict  # noqa: PLC0415
+
+    verdict = CrossCheckVerdict.model_validate_json(verdict_bytes)
+    reasoning_lower = verdict.reasoning.lower()
+    assert (
+        "intent" in reasoning_lower
+        or "address" in reasoning_lower
+        or "vulnerability" in reasoning_lower
+        or "path" in reasoning_lower
+        or "sql" in reasoning_lower
+    ), f"Reasoning did not mention the mismatch: {verdict.reasoning!r}"
