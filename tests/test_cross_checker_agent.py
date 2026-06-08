@@ -276,6 +276,32 @@ def test_malformed_llm_output_raises_named_error(tmp_path: Path) -> None:
         agent(case, ro_store)
 
 
+def test_wrong_return_type_raises_llm_response_error_not_attribute_error(tmp_path: Path) -> None:
+    """isinstance guard: provider returning str (not CrossCheckVerdict) must raise
+    LLMResponseError with a clear message, NOT AttributeError from .verdict access."""
+    case_id = "case-wrong-type"
+    case, ro_store = _default_case(case_id, tmp_path)
+
+    @dataclass
+    class StrReturningLLM:
+        name: str = "str-returner"
+        model: str = "fake-str-1"
+
+        def complete(
+            self,
+            *,
+            system: str,
+            user: str,
+            response_schema: Any = None,
+            max_output_tokens: int = 4096,
+        ) -> Any:
+            return '{"verdict": "approve"}'  # raw str, not CrossCheckVerdict
+
+    agent = CrossCheckerAgent(provider=StrReturningLLM())
+    with pytest.raises(LLMResponseError, match="cross_checker expected CrossCheckVerdict"):
+        agent(case, ro_store)
+
+
 def test_missing_triage_packet_raises_value_error(tmp_path: Path) -> None:
     store = ArtifactStore(tmp_path / "artifacts")
     ro_store = store.read_only()
