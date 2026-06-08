@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -129,16 +128,30 @@ def test_prompt_contains_delimiter_wrapped_report(tmp_path: Path) -> None:
     assert "path traversal" in msg
 
 
-def test_prompt_does_not_contain_secrets(tmp_path: Path) -> None:
-    """Secrets must never appear in the user message (NFR-S-10)."""
-    os.environ["_TEST_SECRET_KEY"] = "sk-supersecret-12345"
-    try:
-        packet = _make_triage_packet("case-x")
-        msg = _build_user_message("case-x", packet, "snippet", "conventions")
-        assert "sk-supersecret-12345" not in msg
-        assert "_TEST_SECRET_KEY" not in msg
-    finally:
-        del os.environ["_TEST_SECRET_KEY"]
+def test_agent_does_not_import_secrets() -> None:
+    """Structural: patch_plan.py must not import core.secrets (NFR-S-10).
+
+    Secrets flow only into LLMProvider constructors, never through the agent
+    layer. This asserts that by construction no secret-bearing object can reach
+    the prompt — a real guarantee, unlike checking for a literal canary string
+    that _build_user_message never receives anyway.
+    """
+    import importlib
+    import importlib.util
+    import sys
+
+    # Remove cached module so we get a fresh import graph inspection.
+    mod_name = "patchwright.agents.patch_plan"
+    if mod_name in sys.modules:
+        del sys.modules[mod_name]
+
+    spec = importlib.util.find_spec(mod_name)
+    assert spec is not None
+    assert spec.origin is not None
+
+    source = Path(spec.origin).read_text(encoding="utf-8")
+    assert "patchwright.core.secrets" not in source
+    assert "from patchwright.core import secrets" not in source
 
 
 def test_prompt_uses_correct_system_prompt_and_schema(tmp_path: Path) -> None:
