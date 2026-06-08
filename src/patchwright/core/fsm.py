@@ -7,6 +7,8 @@ class State(StrEnum):
     INTAKE = "INTAKE"
     TRIAGED = "TRIAGED"
     REJECTED = "REJECTED"
+    REPRODUCED = "REPRODUCED"
+    PATCH_PROPOSED = "PATCH_PROPOSED"
     DONE = "DONE"
 
 
@@ -15,9 +17,12 @@ INITIAL_STATE: State = State.INTAKE
 TERMINAL_STATES: frozenset[State] = frozenset({State.DONE, State.REJECTED})
 
 # P0 graph: minimal but exercises branching (TRIAGED can fork to DONE or REJECTED).
+# REPRODUCED -> PATCH_PROPOSED is the M2-plan transition (FR-PT-1 Phase A).
 _GRAPH: dict[State, frozenset[State]] = {
     State.INTAKE: frozenset({State.TRIAGED, State.REJECTED}),
-    State.TRIAGED: frozenset({State.DONE, State.REJECTED}),
+    State.TRIAGED: frozenset({State.REPRODUCED, State.DONE, State.REJECTED}),
+    State.REPRODUCED: frozenset({State.PATCH_PROPOSED, State.REJECTED}),
+    State.PATCH_PROPOSED: frozenset({State.DONE, State.REJECTED}),
     State.REJECTED: frozenset(),
     State.DONE: frozenset(),
 }
