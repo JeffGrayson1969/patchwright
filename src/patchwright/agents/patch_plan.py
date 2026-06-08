@@ -143,7 +143,8 @@ def _get_snippet(packet: TriagePacket, repo_root: Path) -> str:
 
         if symbol:
             try:
-                parts.append(f"# {file_part}::{symbol}\n{extract_symbol_snippet(candidate, symbol)}")
+                sym_snippet = extract_symbol_snippet(candidate, symbol)
+                parts.append(f"# {file_part}::{symbol}\n{sym_snippet}")
             except SymbolNotFound:
                 log.debug("snippet: symbol %r not found in %s", symbol, file_part)
                 # Fall back to the raw file snippet (first DEFAULT_MAX_LINES).

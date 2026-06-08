@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -18,12 +18,12 @@ from patchwright.agents.patch_plan import (
     _load_triage_packet,
 )
 from patchwright.core.artifacts import ArtifactStore, ReadOnlyArtifactStore
-from patchwright.core.config import PatchwrightConfig
+from patchwright.core.config import ConventionsConfig, PatchwrightConfig
 from patchwright.core.fsm import State
-from patchwright.core.hashing import canonical_json
+from patchwright.core.hashing import canonical_json, sha256_b16
 from patchwright.core.llm import LLMResponseError
-from patchwright.core.models import Case
-from patchwright.models.patch_plan import InsertImport, PatchPlan, ReplaceFunctionBody
+from patchwright.core.models import Artifact, Case
+from patchwright.models.patch_plan import InsertImport, PatchPlan
 from patchwright.models.triage import TriageDisposition, TriagePacket
 
 # --------------------------------------------------------------------------- fake provider
@@ -59,7 +59,7 @@ class FakeLLM:
         return self.next_plan
 
 
-# --------------------------------------------------------------------------- fixtures
+# --------------------------------------------------------------------------- factories
 
 
 def _make_triage_packet(case_id: str, component: str = "vulnerable.py") -> TriagePacket:
@@ -79,15 +79,17 @@ def _make_patch_plan(case_id: str) -> PatchPlan:
         case_id=case_id,
         summary="Wrap open() with safe_path to prevent path traversal",
         operations=[
-            InsertImport(file="vulnerable.py", module="patchwright_helpers", names=["safe_path"]),
+            InsertImport(
+                file="vulnerable.py",
+                module="patchwright_helpers",
+                names=["safe_path"],
+            ),
         ],
         rationale="safe_path checks the path is within the allowed base directory.",
     )
 
 
-def _make_case(case_id: str, artifacts: list[Any] = field(default_factory=list)) -> Case:  # type: ignore[assignment]
-    from patchwright.core.models import Artifact
-
+def _make_case(case_id: str, artifacts: list[Artifact]) -> Case:
     return Case(
         id=case_id,
         state=str(State.REPRODUCED),
@@ -102,11 +104,18 @@ def _store_with_packet(
     tmp_path: Path, case_id: str, packet: TriagePacket
 ) -> tuple[ArtifactStore, ReadOnlyArtifactStore]:
     store = ArtifactStore(tmp_path / "artifacts")
-    sha = store.put(canonical_json(packet.model_dump(mode="json")))
+    packet_bytes = canonical_json(packet.model_dump(mode="json"))
+    sha = store.put(packet_bytes)
+    _ = sha  # kept for side-effect (writing to store)
     return store, store.read_only()
 
 
-# --------------------------------------------------------------------------- helpers: prompt assembly
+def _artifact_for(packet: TriagePacket) -> Artifact:
+    packet_bytes = canonical_json(packet.model_dump(mode="json"))
+    return Artifact(id=sha256_b16(packet_bytes), kind="triage_packet", size=len(packet_bytes))
+
+
+# --------------------------------------------------------------------------- prompt assembly
 
 
 def test_prompt_contains_delimiter_wrapped_report(tmp_path: Path) -> None:
@@ -115,15 +124,11 @@ def test_prompt_contains_delimiter_wrapped_report(tmp_path: Path) -> None:
     msg = _build_user_message("case-x", packet, snippet, "Project conventions: code_style='ruff'.")
     assert VULN_DELIMITER in msg
     assert SNIPPET_DELIMITER in msg
-    # Untrusted content appears between delimiters, not in the system prompt.
     assert "path traversal" in msg
 
 
 def test_prompt_does_not_contain_secrets(tmp_path: Path) -> None:
     """Secrets must never appear in the user message (NFR-S-10)."""
-    import os
-
-    # Set a fake API key in the environment; assert it does not leak into the prompt.
     os.environ["_TEST_SECRET_KEY"] = "sk-supersecret-12345"
     try:
         packet = _make_triage_packet("case-x")
@@ -134,17 +139,11 @@ def test_prompt_does_not_contain_secrets(tmp_path: Path) -> None:
         del os.environ["_TEST_SECRET_KEY"]
 
 
-def test_prompt_uses_correct_system_prompt(tmp_path: Path) -> None:
-    from patchwright.core.models import Artifact
-
+def test_prompt_uses_correct_system_prompt_and_schema(tmp_path: Path) -> None:
     case_id = "case-prompt"
     packet = _make_triage_packet(case_id)
-    store, ro_store = _store_with_packet(tmp_path, case_id, packet)
-
-    from patchwright.core.hashing import sha256_b16
-
-    sha = sha256_b16(canonical_json(packet.model_dump(mode="json")))
-    artifact = Artifact(id=sha, kind="triage_packet", size=len(canonical_json(packet.model_dump(mode="json"))))
+    _store, ro_store = _store_with_packet(tmp_path, case_id, packet)
+    artifact = _artifact_for(packet)
     case = _make_case(case_id, artifacts=[artifact])
 
     llm = FakeLLM(next_plan=_make_patch_plan(case_id))
@@ -159,14 +158,10 @@ def test_prompt_uses_correct_system_prompt(tmp_path: Path) -> None:
 
 
 def test_happy_path_returns_patch_plan_artifact(tmp_path: Path) -> None:
-    from patchwright.core.models import Artifact
-
     case_id = "case-happy"
     packet = _make_triage_packet(case_id)
-    store, ro_store = _store_with_packet(tmp_path, case_id, packet)
-
-    sha = store.put(canonical_json(packet.model_dump(mode="json")))
-    artifact = Artifact(id=sha, kind="triage_packet", size=42)
+    _store, ro_store = _store_with_packet(tmp_path, case_id, packet)
+    artifact = _artifact_for(packet)
     case = _make_case(case_id, artifacts=[artifact])
 
     plan = _make_patch_plan(case_id)
@@ -180,23 +175,18 @@ def test_happy_path_returns_patch_plan_artifact(tmp_path: Path) -> None:
     assert len(result.new_artifacts) == 1
     _bytes, kind = result.new_artifacts[0]
     assert kind == "patch_plan"
-    # Artifact must round-trip through PatchPlan.model_validate_json.
     recovered = PatchPlan.model_validate_json(_bytes)
     assert recovered.case_id == case_id
     assert recovered.summary == plan.summary
 
 
 def test_case_id_mismatch_overridden(tmp_path: Path) -> None:
-    from patchwright.core.models import Artifact
-
     case_id = "case-correct"
     packet = _make_triage_packet(case_id)
-    store, ro_store = _store_with_packet(tmp_path, case_id, packet)
-    sha = store.put(canonical_json(packet.model_dump(mode="json")))
-    artifact = Artifact(id=sha, kind="triage_packet", size=42)
+    _store, ro_store = _store_with_packet(tmp_path, case_id, packet)
+    artifact = _artifact_for(packet)
     case = _make_case(case_id, artifacts=[artifact])
 
-    # LLM returns plan with wrong case_id.
     bad_plan = _make_patch_plan("case-wrong")
     llm = FakeLLM(next_plan=bad_plan)
     agent = PatchPlanAgent(provider=llm, repo_root=tmp_path)
@@ -211,13 +201,10 @@ def test_case_id_mismatch_overridden(tmp_path: Path) -> None:
 
 
 def test_invalid_llm_output_raises_llm_response_error(tmp_path: Path) -> None:
-    from patchwright.core.models import Artifact
-
     case_id = "case-bad"
     packet = _make_triage_packet(case_id)
-    store, ro_store = _store_with_packet(tmp_path, case_id, packet)
-    sha = store.put(canonical_json(packet.model_dump(mode="json")))
-    artifact = Artifact(id=sha, kind="triage_packet", size=42)
+    _store, ro_store = _store_with_packet(tmp_path, case_id, packet)
+    artifact = _artifact_for(packet)
     case = _make_case(case_id, artifacts=[artifact])
 
     llm = FakeLLM(raise_error=LLMResponseError("provider returned malformed JSON"))
@@ -240,17 +227,14 @@ def test_missing_triage_packet_raises_value_error(tmp_path: Path) -> None:
         agent(case, ro_store)
 
 
-# --------------------------------------------------------------------------- _load_triage_packet helper
+# --------------------------------------------------------------------------- _load_triage_packet
 
 
 def test_load_triage_packet_helper(tmp_path: Path) -> None:
-    from patchwright.core.models import Artifact
-
     case_id = "case-ltp"
     packet = _make_triage_packet(case_id)
-    store, ro_store = _store_with_packet(tmp_path, case_id, packet)
-    sha = store.put(canonical_json(packet.model_dump(mode="json")))
-    artifact = Artifact(id=sha, kind="triage_packet", size=42)
+    _store, ro_store = _store_with_packet(tmp_path, case_id, packet)
+    artifact = _artifact_for(packet)
     case = _make_case(case_id, artifacts=[artifact])
 
     loaded = _load_triage_packet(case, ro_store)
@@ -258,18 +242,21 @@ def test_load_triage_packet_helper(tmp_path: Path) -> None:
     assert loaded.claim_type == "path traversal"
 
 
-# --------------------------------------------------------------------------- config conventions in prompt
+# --------------------------------------------------------------------------- conventions in prompt
 
 
 def test_conventions_appear_in_user_message(tmp_path: Path) -> None:
-    from patchwright.core.config import ConventionsConfig
-
     config = PatchwrightConfig()
     config = config.model_copy(
         update={"conventions": ConventionsConfig(code_style="black", test_command="pytest -x")}
     )
     packet = _make_triage_packet("case-conv")
     snippet = "def read_file(f): pass"
-    msg = _build_user_message("case-conv", packet, snippet, f"code_style='black' test_command='pytest -x'")
+    msg = _build_user_message(
+        "case-conv",
+        packet,
+        snippet,
+        "code_style='black' test_command='pytest -x'",
+    )
     assert "black" in msg
     assert "pytest -x" in msg

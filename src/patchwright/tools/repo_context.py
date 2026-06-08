@@ -79,11 +79,7 @@ def _find_definition(tree: cst.Module, symbol: str) -> str:
 def _find_top_level(tree: cst.Module, name: str) -> str:
     """Return source for a module-level function or class named *name*."""
     for stmt in tree.body:
-        if isinstance(stmt, (cst.FunctionDef, cst.ClassDef)):
-            if _def_name(stmt) == name:
-                return tree.code_for_node(stmt).rstrip()
-        # Decorated functions: the decoration wraps a FunctionDef.
-        if isinstance(stmt, cst.FunctionDef) and _def_name(stmt) == name:
+        if isinstance(stmt, (cst.FunctionDef, cst.ClassDef)) and _def_name(stmt) == name:
             return tree.code_for_node(stmt).rstrip()
     raise SymbolNotFound(f"symbol {name!r} not found in {tree}")
 
@@ -95,9 +91,7 @@ def _find_method(tree: cst.Module, class_name: str, method_name: str) -> str:
             for item in stmt.body.body:
                 if isinstance(item, cst.FunctionDef) and _def_name(item) == method_name:
                     return tree.code_for_node(item).rstrip()
-            raise SymbolNotFound(
-                f"method {method_name!r} not found in class {class_name!r}"
-            )
+            raise SymbolNotFound(f"method {method_name!r} not found in class {class_name!r}")
     raise SymbolNotFound(f"class {class_name!r} not found in module")
 
 

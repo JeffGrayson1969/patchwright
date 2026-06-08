@@ -76,7 +76,7 @@ def _write(tmp_path: Path, name: str, content: str) -> Path:
     return p
 
 
-# --------------------------------------------------------------------------- tests: module-level function
+# --------------------------------------------------------------------------- module-level function
 
 
 def test_module_level_function_found(tmp_path: Path) -> None:
@@ -128,7 +128,7 @@ def test_method_not_in_class_raises(tmp_path: Path) -> None:
         extract_symbol_snippet(p, "MyParser.no_method")
 
 
-# --------------------------------------------------------------------------- tests: decorated function
+# --------------------------------------------------------------------------- decorated function
 
 
 def test_decorated_function_found(tmp_path: Path) -> None:
