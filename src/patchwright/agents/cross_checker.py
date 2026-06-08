@@ -9,12 +9,11 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import cast
 
 from patchwright.core.artifacts import ReadOnlyArtifactStore
 from patchwright.core.fsm import State
 from patchwright.core.hashing import canonical_json
-from patchwright.core.llm import LLMProvider
+from patchwright.core.llm import LLMProvider, LLMResponseError
 from patchwright.core.models import AgentResult, Case, Transition
 from patchwright.models.cross_check import CrossCheckVerdict
 from patchwright.models.patch_plan import PatchPlan
@@ -22,8 +21,8 @@ from patchwright.models.triage import TriagePacket
 
 log = logging.getLogger(__name__)
 
-# Skeptic framing: deliberately different from patch_plan's constructive-engineer
-# framing so the LLM is primed to challenge the plan rather than validate it.
+# Skeptic framing distinguishes cross-check from primary in OSS mode; intent-mismatch defense only.
+# See CrossCheckerConfig docstring for T9 scope.
 SKEPTIC_SYSTEM_PROMPT = """You are PatchWright's cross-checker — an independent security reviewer.
 
 Your job: given an original vulnerability report and a candidate PatchPlan,
@@ -65,15 +64,17 @@ class CrossCheckerAgent:
 
         user_message = _build_user_message(case.id, packet, plan)
 
-        verdict = cast(
-            "CrossCheckVerdict",
-            self.provider.complete(
-                system=SKEPTIC_SYSTEM_PROMPT,
-                user=user_message,
-                response_schema=CrossCheckVerdict,
-                max_output_tokens=4096,
-            ),
+        verdict = self.provider.complete(
+            system=SKEPTIC_SYSTEM_PROMPT,
+            user=user_message,
+            response_schema=CrossCheckVerdict,
+            max_output_tokens=4096,
         )
+        if not isinstance(verdict, CrossCheckVerdict):
+            raise LLMResponseError(
+                f"cross_checker expected CrossCheckVerdict, got {type(verdict).__name__!r}; "
+                "provider may not support response_schema"
+            )
 
         if verdict.verdict == "approve":
             target_state = str(State.PATCH_APPLIED)
