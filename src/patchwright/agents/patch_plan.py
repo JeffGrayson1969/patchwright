@@ -19,7 +19,11 @@ from patchwright.core.llm import LLMProvider
 from patchwright.core.models import AgentResult, Case, Transition
 from patchwright.models.patch_plan import PatchPlan
 from patchwright.models.triage import TriagePacket
-from patchwright.tools.repo_context import SymbolNotFound, extract_symbol_snippet
+from patchwright.tools.repo_context import (
+    SymbolNotFound,
+    extract_imports_only,
+    extract_symbol_snippet,
+)
 
 log = logging.getLogger(__name__)
 
@@ -149,8 +153,9 @@ def _get_snippet(packet: TriagePacket, repo_root: Path) -> str:
                 parts.append(f"# {file_part}::{symbol}\n{sym_snippet}")
             except SymbolNotFound:
                 log.debug("snippet: symbol %r not found in %s", symbol, file_part)
-                # Fall back to the raw file snippet (first DEFAULT_MAX_LINES).
-                parts.append(_raw_snippet(candidate))
+                # Fallback: imports only + placeholder — avoids leaking unrelated
+                # function bodies while still giving the LLM scope information.
+                parts.append(_imports_and_placeholder(candidate, symbol))
         else:
             parts.append(_raw_snippet(candidate))
 
@@ -163,6 +168,17 @@ def _raw_snippet(path: Path, max_lines: int = 200) -> str:
     """Return the first max_lines lines of a file."""
     lines = path.read_text(encoding="utf-8").splitlines()[:max_lines]
     return f"# {path.name}\n" + "\n".join(lines)
+
+
+def _imports_and_placeholder(path: Path, symbol: str) -> str:
+    """Return imports block + a not-found placeholder for a missing symbol.
+
+    Avoids sending arbitrary function bodies to the LLM when the symbol lookup
+    fails — the import block still conveys what's available in scope.
+    """
+    imports = extract_imports_only(path)
+    placeholder = f"# <{symbol} not found in {path.name}>"
+    return f"{imports}\n{placeholder}" if imports else placeholder
 
 
 def _conventions_note(config: PatchwrightConfig) -> str:
