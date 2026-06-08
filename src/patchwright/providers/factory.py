@@ -30,9 +30,10 @@ def build_cross_checker(config: PatchwrightConfig) -> LLMProvider:
     Multi-provider mode: if cross_checker.provider is set, builds a fresh provider
     of that type, independent of the primary. No consensus aggregation — that's Shield
     (PRD §12.2).
+
+    OSS mode T9 caveat documented on `CrossCheckerConfig`.
     """
     cc = config.cross_checker
-    _enforce_embargo(config.embargo, config.llm)
 
     # Determine which provider type to use.
     provider_name = cc.provider if cc.provider is not None else config.llm.provider
@@ -40,12 +41,19 @@ def build_cross_checker(config: PatchwrightConfig) -> LLMProvider:
     model_override = cc.model  # None = provider default
 
     # Build a synthetic LLMConfig for the cross-checker provider.
+    # base_url is only relevant when provider is openai_compat; for other providers it is None.
     cross_llm = LLMConfig(
         provider=provider_name,
         model=model_override,
-        base_url=config.llm.base_url,  # carry base_url for openai_compat continuity
+        base_url=config.llm.base_url if provider_name == config.llm.provider else None,
         effort=config.llm.effort,
     )
+
+    # Embargo enforcement MUST use the RESOLVED cross-checker config, not the primary.
+    # Without this, strict mode passes when the primary is local but cross_checker.provider
+    # is a public API (e.g. anthropic), leaking embargoed report content externally (R2/T4).
+    _enforce_embargo(config.embargo, cross_llm)
+
     return _build(cross_llm)
 
 

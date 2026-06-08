@@ -12,7 +12,7 @@ import pytest
 from patchwright.core.config import PatchwrightConfig
 from patchwright.core.llm import LLMConfigError
 from patchwright.providers.anthropic_provider import AnthropicProvider
-from patchwright.providers.factory import provider_from_config
+from patchwright.providers.factory import build_cross_checker, provider_from_config
 from patchwright.providers.mcp_sampling import MCPSamplingProvider
 from patchwright.providers.openai_compat import OpenAICompatProvider
 
@@ -120,6 +120,58 @@ def test_strict_mode_127_loopback_allowed() -> None:
         _config(
             llm={"provider": "openai_compat", "base_url": "http://127.0.0.1:8000"},
             embargo={"mode": "strict"},
+        )
+    )
+    assert isinstance(provider, OpenAICompatProvider)
+
+
+# --------------------------------------------------------------------------- cross-checker embargo
+
+
+def test_cross_checker_strict_blocks_anthropic_cross_checker_with_local_primary() -> None:
+    # Primary is local Ollama (passes embargo), but cross_checker overrides to anthropic (public).
+    # Without fix #1, this config silently leaks embargoed data to the public API.
+    with pytest.raises(LLMConfigError, match="refuses provider 'anthropic'"):
+        build_cross_checker(
+            _config(
+                llm={
+                    "provider": "openai_compat",
+                    "base_url": "http://localhost:11434/v1",
+                    "model": "llama3",
+                },
+                embargo={"mode": "strict"},
+                cross_checker={"provider": "anthropic"},
+            )
+        )
+
+
+def test_cross_checker_off_embargo_allows_anthropic_cross_checker() -> None:
+    # Positive control: embargo.mode='normal' — any provider allowed.
+    provider = build_cross_checker(
+        _config(
+            llm={
+                "provider": "openai_compat",
+                "base_url": "http://localhost:11434/v1",
+                "model": "llama3",
+            },
+            embargo={"mode": "normal"},
+            cross_checker={"provider": "anthropic"},
+        )
+    )
+    assert isinstance(provider, AnthropicProvider)
+
+
+def test_cross_checker_strict_inherits_local_primary_allowed() -> None:
+    # Positive control 2: strict + cross_checker.provider=None inherits local primary -> allowed.
+    provider = build_cross_checker(
+        _config(
+            llm={
+                "provider": "openai_compat",
+                "base_url": "http://localhost:11434/v1",
+                "model": "llama3",
+            },
+            embargo={"mode": "strict"},
+            cross_checker={"provider": None},
         )
     )
     assert isinstance(provider, OpenAICompatProvider)
