@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from patchwright.core.llm import LLMConfigError, LLMResponseError
+from patchwright.core.llm import LLMConfigError, LLMRefusal, LLMResponseError
 from patchwright.models.triage import TriageDisposition, TriagePacket
 from patchwright.providers.openai_compat import OpenAICompatProvider
 
@@ -80,3 +80,40 @@ def test_empty_content_raises_response_error(monkeypatch: pytest.MonkeyPatch) ->
         pytest.raises(LLMResponseError, match="empty content"),
     ):
         OpenAICompatProvider().complete(system="s", user="u")
+
+
+# --------------------------------------------------------------------------- fix #8: content_filter → LLMRefusal
+
+
+def test_content_filter_raises_llm_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """finish_reason='content_filter' must raise LLMRefusal, not LLMResponseError."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    fake_choice = SimpleNamespace(
+        message=SimpleNamespace(parsed=None), finish_reason="content_filter"
+    )
+    fake_response = SimpleNamespace(choices=[fake_choice])
+    fake_client = MagicMock()
+    fake_client.beta.chat.completions.parse.return_value = fake_response
+    with (
+        patch("keyring.get_password", return_value=None),
+        patch("openai.OpenAI", return_value=fake_client),
+        pytest.raises(LLMRefusal, match="content_filter"),
+    ):
+        OpenAICompatProvider().complete(system="s", user="u", response_schema=_packet().__class__)
+
+
+def test_stop_with_null_parsed_raises_response_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: finish_reason='stop' with parsed=None is a parse failure, not a refusal."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    fake_choice = SimpleNamespace(
+        message=SimpleNamespace(parsed=None), finish_reason="stop"
+    )
+    fake_response = SimpleNamespace(choices=[fake_choice])
+    fake_client = MagicMock()
+    fake_client.beta.chat.completions.parse.return_value = fake_response
+    with (
+        patch("keyring.get_password", return_value=None),
+        patch("openai.OpenAI", return_value=fake_client),
+        pytest.raises(LLMResponseError, match="no parsed message"),
+    ):
+        OpenAICompatProvider().complete(system="s", user="u", response_schema=_packet().__class__)

@@ -16,7 +16,7 @@ from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
-from patchwright.core.llm import LLMConfigError, LLMResponseError
+from patchwright.core.llm import LLMConfigError, LLMRefusal, LLMResponseError
 from patchwright.core.secrets import SecretNotFound, get_secret
 
 log = logging.getLogger(__name__)
@@ -90,6 +90,11 @@ class OpenAICompatProvider:
                     max_completion_tokens=max_output_tokens,
                 )
                 choice = response.choices[0]
+                # content_filter is a refusal, not a parse error — mirror Anthropic provider.
+                if choice.finish_reason == "content_filter":
+                    raise LLMRefusal(
+                        f"OpenAI refused (content_filter); finish_reason={choice.finish_reason!r}"
+                    )
                 parsed = choice.message.parsed
                 if parsed is None:
                     raise LLMResponseError(
