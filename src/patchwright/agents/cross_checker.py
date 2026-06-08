@@ -55,7 +55,7 @@ class CrossCheckerAgent:
 
     provider: LLMProvider
     name: str = "cross_checker"
-    handles_state: str = field(default_factory=lambda: str(State.PATCH_PROPOSED))
+    handles_state: str = field(default=str(State.PATCH_PROPOSED))
 
     def __call__(self, case: Case, store: ReadOnlyArtifactStore) -> AgentResult:
         # Load artifacts fresh from disk — no in-memory state (CLAUDE.md #3).
@@ -120,8 +120,8 @@ def _load_patch_plan(case: Case, store: ReadOnlyArtifactStore) -> PatchPlan:
 
 def _build_user_message(case_id: str, packet: TriagePacket, plan: PatchPlan) -> str:
     # Serialize triage packet as JSON; raw_text is already inside it.
-    packet_json = json.dumps(packet.model_dump(mode="json"), indent=2)
-    # Serialize plan with sorted keys for prompt determinism (CLAUDE.md conventions).
+    # sort_keys=True on both for prompt determinism — matches plan_json path.
+    packet_json = json.dumps(packet.model_dump(mode="json"), sort_keys=True, indent=2)
     plan_json = json.dumps(plan.model_dump(mode="json"), sort_keys=True, indent=2)
 
     return (
