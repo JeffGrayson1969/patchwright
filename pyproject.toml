@@ -84,6 +84,7 @@ addopts = "-ra --strict-markers --strict-config"
 filterwarnings = ["error"]
 markers = [
     "docker: requires a running docker daemon; auto-skipped when unavailable",
+    "integration: calls a real external LLM API; skipped without an API key",
 ]
 
 [tool.coverage.run]
