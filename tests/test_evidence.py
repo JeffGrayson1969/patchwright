@@ -39,7 +39,7 @@ def test_render_shows_state_and_artifact_count(tmp_path: Path) -> None:
 
     md = render(record.case, record.entries, store)
     assert "**State:**" in md
-    assert "DONE" in md  # noop_closer takes it to DONE
+    assert "REJECTED" in md  # noop_closer takes it to REJECTED (TRIAGED->DONE removed)
     assert "Artifacts attached" in md
 
 

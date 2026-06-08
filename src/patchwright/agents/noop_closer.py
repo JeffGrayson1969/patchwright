@@ -1,9 +1,5 @@
-"""noop_closer — closes a TRIAGED case to DONE for the P0 hello-world demo.
-
-Two agents (not one) demonstrates the registry+FSM dispatch generalizes
-beyond a single transition.
-"""
-
+# noop_closer — P0 hello-world demo agent. Rejects a TRIAGED case to reach a
+# terminal state. TRIAGED->DONE was removed (CLAUDE.md #8: no shortcut past review).
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -24,11 +20,11 @@ class _NoopCloser:
             transition=Transition(
                 case_id=case.id,
                 from_state=str(State.TRIAGED),
-                to_state=str(State.DONE),
-                reason="noop: close for hello-world",
+                to_state=str(State.REJECTED),
+                reason="noop: reject for hello-world demo (no real repro agent)",
             ),
             new_artifacts=[],
-            reason="noop close",
+            reason="noop reject",
         )
 
 

@@ -81,16 +81,17 @@ def _run_to_terminal(
     llm = FakeLLM(next_packet=_packet(case_id, disposition))
     registry = Registry()
     registry.register(TriageAgent(provider=llm))
-    # noop_closer so TRIAGED can advance to DONE for the ADVANCE case
+    # noop_closer so TRIAGED reaches a terminal state (REJECTED) for the ADVANCE case.
+    # TRIAGED->DONE was dropped (CLAUDE.md #8 — no shortcut past human review).
     registry.register(noop_closer)
 
     case = drive(case_id, registry, tmp_path)
     return case, llm
 
 
-def test_advance_disposition_transitions_to_triaged_then_done(tmp_path: Path) -> None:
+def test_advance_disposition_transitions_to_triaged_then_rejected(tmp_path: Path) -> None:
     case, llm = _run_to_terminal(tmp_path, b'{"id":"R1"}', TriageDisposition.ADVANCE)
-    assert case.state == "DONE"
+    assert case.state == "REJECTED"
     assert llm.call_count == 1
     assert llm.last_schema is TriagePacket
     assert REPORT_DELIMITER in llm.last_user
@@ -140,7 +141,7 @@ def test_llm_emitted_case_id_mismatch_is_overridden(tmp_path: Path) -> None:
     registry.register(noop_closer)
 
     case = drive(case_id, registry, tmp_path)
-    assert case.state == "DONE"
+    assert case.state == "REJECTED"
 
     # Find the persisted triage_packet artifact and check case_id was overridden
     paths = case_root_paths(tmp_path, case_id)

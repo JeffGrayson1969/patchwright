@@ -13,12 +13,15 @@ LEGAL_EDGES: list[tuple[State, State]] = [
     (State.INTAKE, State.TRIAGED),
     (State.INTAKE, State.REJECTED),
     (State.TRIAGED, State.REPRODUCED),
-    (State.TRIAGED, State.DONE),
+    (State.TRIAGED, State.NOT_REPRODUCIBLE),
     (State.TRIAGED, State.REJECTED),
     (State.REPRODUCED, State.PATCH_PROPOSED),
     (State.REPRODUCED, State.REJECTED),
-    (State.PATCH_PROPOSED, State.DONE),
+    (State.PATCH_PROPOSED, State.PATCH_APPLIED),
     (State.PATCH_PROPOSED, State.REJECTED),
+    (State.PATCH_APPLIED, State.AWAITING_REVIEW),
+    (State.AWAITING_REVIEW, State.DONE),
+    (State.AWAITING_REVIEW, State.REJECTED),
 ]
 
 

@@ -7,22 +7,28 @@ class State(StrEnum):
     INTAKE = "INTAKE"
     TRIAGED = "TRIAGED"
     REJECTED = "REJECTED"
+    NOT_REPRODUCIBLE = "NOT_REPRODUCIBLE"
     REPRODUCED = "REPRODUCED"
     PATCH_PROPOSED = "PATCH_PROPOSED"
+    PATCH_APPLIED = "PATCH_APPLIED"
+    AWAITING_REVIEW = "AWAITING_REVIEW"
     DONE = "DONE"
 
 
 INITIAL_STATE: State = State.INTAKE
 
-TERMINAL_STATES: frozenset[State] = frozenset({State.DONE, State.REJECTED})
+TERMINAL_STATES: frozenset[State] = frozenset({State.DONE, State.REJECTED, State.NOT_REPRODUCIBLE})
 
-# P0 graph: minimal but exercises branching (TRIAGED can fork to DONE or REJECTED).
-# REPRODUCED -> PATCH_PROPOSED is the M2-plan transition (FR-PT-1 Phase A).
+# Full Wave B graph per phase1-work-plan.md. Shortcut edges (TRIAGED->DONE,
+# PATCH_PROPOSED->DONE) removed — human review is the only path to DONE (CLAUDE.md #8).
 _GRAPH: dict[State, frozenset[State]] = {
     State.INTAKE: frozenset({State.TRIAGED, State.REJECTED}),
-    State.TRIAGED: frozenset({State.REPRODUCED, State.DONE, State.REJECTED}),
+    State.TRIAGED: frozenset({State.REPRODUCED, State.NOT_REPRODUCIBLE, State.REJECTED}),
     State.REPRODUCED: frozenset({State.PATCH_PROPOSED, State.REJECTED}),
-    State.PATCH_PROPOSED: frozenset({State.DONE, State.REJECTED}),
+    State.PATCH_PROPOSED: frozenset({State.PATCH_APPLIED, State.REJECTED}),
+    State.PATCH_APPLIED: frozenset({State.AWAITING_REVIEW}),
+    State.AWAITING_REVIEW: frozenset({State.DONE, State.REJECTED}),
+    State.NOT_REPRODUCIBLE: frozenset(),
     State.REJECTED: frozenset(),
     State.DONE: frozenset(),
 }

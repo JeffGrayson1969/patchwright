@@ -40,7 +40,7 @@ def test_record_human_decision_appends_entry(tmp_path: Path) -> None:
     assert entry.author == "human:olivia@example.com"
     assert entry.payload["decision"] == "approve"
     assert entry.payload["reason"] == "LGTM"
-    assert entry.payload["case_state_at_review"] == "DONE"
+    assert entry.payload["case_state_at_review"] == "REJECTED"
 
     # Verify it's persisted in the case journal
     record = load_case(case_id, tmp_path)

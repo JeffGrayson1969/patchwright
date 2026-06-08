@@ -243,7 +243,7 @@ def test_load_triage_packet_helper(tmp_path: Path) -> None:
     assert loaded.claim_type == "path traversal"
 
 
-# --------------------------------------------------------------------------- _get_snippet path-traversal containment (review #1)
+# ---------------------------------------------------------------- path-traversal containment
 
 
 def test_get_snippet_rejects_path_traversal(tmp_path: Path) -> None:

@@ -46,5 +46,7 @@ def test_hello_end_to_end_via_cli(tmp_path: Path, capsys: object) -> None:
         prev = e.content_hash
 
     # Transitions show the expected to_states in order.
+    # noop_closer now emits TRIAGED->REJECTED (TRIAGED->DONE was a shortcut edge
+    # that violated CLAUDE.md #8 and has been removed from the FSM).
     transitions = [e for e in entries if e.kind == "transition"]
-    assert [t.payload["to_state"] for t in transitions] == ["TRIAGED", "DONE"]
+    assert [t.payload["to_state"] for t in transitions] == ["TRIAGED", "REJECTED"]

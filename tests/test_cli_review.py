@@ -44,7 +44,7 @@ def test_list_shows_cases(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     out = capsys.readouterr().out
     assert "case-a" in out
     assert "case-b" in out
-    assert "DONE" in out
+    assert "REJECTED" in out  # noop_closer now emits TRIAGED->REJECTED
     assert "CASE" in out  # header
 
 
@@ -53,7 +53,7 @@ def test_list_filters_by_state(tmp_path: Path, capsys: pytest.CaptureFixture[str
     rc = cli_main(["list", "--root", str(tmp_path), "--state", "INTAKE"])
     assert rc == 0
     out = capsys.readouterr().err
-    assert "no cases found" in out  # filter excludes the DONE case
+    assert "no cases found" in out  # filter excludes the REJECTED case
 
 
 # --------------------------------------------------------------------------- explain
