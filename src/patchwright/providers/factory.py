@@ -126,4 +126,4 @@ def _build(llm: LLMConfig) -> LLMProvider:
     raise LLMConfigError(f"unknown llm.provider: {llm.provider!r}")  # pragma: no cover
 
 
-__all__ = ["provider_from_config", "build_cross_checker"]
+__all__ = ["build_cross_checker", "provider_from_config"]

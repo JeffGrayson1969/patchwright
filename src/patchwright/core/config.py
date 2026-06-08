@@ -160,11 +160,11 @@ class CrossCheckerConfig(BaseModel):
         default=0.3,
         ge=0.0,
         le=2.0,
-        description="Temperature offset from the primary provider (only applies in same-provider mode).",
+        description="Temperature offset from the primary (only applies in same-provider mode).",
     )
 
     system_prompt_style: Literal["skeptic"] = "skeptic"
-    """Cross-checker system prompt framing. 'skeptic' is the M2.5 default; room to add styles later."""
+    """Cross-checker prompt framing. 'skeptic' is the M2.5 default."""
 
 
 # --------------------------------------------------------------------------- root

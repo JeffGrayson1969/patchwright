@@ -19,7 +19,10 @@ class CrossCheckVerdict(BaseModel):
     vulnerability_summary: str = Field(
         min_length=1,
         max_length=2000,
-        description="The cross-checker's independent summary of what vulnerability the original report describes.",
+        description=(
+            "The cross-checker's independent summary of what vulnerability "
+            "the original report describes."
+        ),
     )
 
     fix_summary: str = Field(
@@ -29,7 +32,10 @@ class CrossCheckVerdict(BaseModel):
     )
 
     verdict: Literal["approve", "refuse"] = Field(
-        description="'approve' if the fix addresses the vulnerability; 'refuse' if intent diverges or the plan is unsafe.",
+        description=(
+            "'approve' if the fix addresses the vulnerability; "
+            "'refuse' if intent diverges or the plan is unsafe."
+        ),
     )
 
     reasoning: str = Field(

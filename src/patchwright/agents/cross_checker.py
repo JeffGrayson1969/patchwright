@@ -1,4 +1,8 @@
-"""T9 mitigation: re-evaluates `patch_plan` output against the original report; refuses `PATCH_PROPOSED -> PATCH_APPLIED` if intent diverges. OSS single-provider mode; full Shield consensus is PRD §12.2."""
+"""T9 mitigation: re-evaluates `patch_plan` output against the original report.
+
+Refuses PATCH_PROPOSED -> PATCH_APPLIED if intent diverges.
+OSS single-provider mode; full Shield consensus is PRD §12.2.
+"""
 
 from __future__ import annotations
 
@@ -71,7 +75,10 @@ class CrossCheckerAgent:
             ),
         )
 
-        target_state = str(State.PATCH_APPLIED) if verdict.verdict == "approve" else str(State.REJECTED)
+        if verdict.verdict == "approve":
+            target_state = str(State.PATCH_APPLIED)
+        else:
+            target_state = str(State.REJECTED)
         verdict_bytes = canonical_json(verdict.model_dump(mode="json"))
 
         log.info(
