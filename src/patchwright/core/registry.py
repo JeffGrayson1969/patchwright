@@ -97,3 +97,29 @@ def patch_plan_registry(provider: object, repo_root: object) -> Registry:
     r.register(PatchPlanAgent(provider=provider, repo_root=Path(str(repo_root))))  # type: ignore[arg-type]
     r.register(noop_closer)
     return r
+
+
+def cross_checker_registry(
+    primary_provider: object,
+    cross_checker_provider: object,
+    repo_root: object,
+) -> Registry:
+    """Registry wired for triage + patch-plan + cross-checker (M2.5 Wave B).
+
+    primary_provider drives triage + patch_plan; cross_checker_provider drives
+    the cross-checker. Both typed as object to avoid import-cycle at module load.
+    Build providers with provider_from_config / build_cross_checker from factory.py.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    from patchwright.agents.cross_checker import CrossCheckerAgent  # noqa: PLC0415
+    from patchwright.agents.noop_closer import agent as noop_closer  # noqa: PLC0415
+    from patchwright.agents.patch_plan import PatchPlanAgent  # noqa: PLC0415
+    from patchwright.agents.triage import TriageAgent  # noqa: PLC0415
+
+    r = Registry()
+    r.register(TriageAgent(provider=primary_provider))  # type: ignore[arg-type]
+    r.register(PatchPlanAgent(provider=primary_provider, repo_root=Path(str(repo_root))))  # type: ignore[arg-type]
+    r.register(CrossCheckerAgent(provider=cross_checker_provider))  # type: ignore[arg-type]
+    r.register(noop_closer)
+    return r

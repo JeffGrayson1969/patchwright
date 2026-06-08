@@ -25,6 +25,7 @@ _GRAPH: dict[State, frozenset[State]] = {
     State.INTAKE: frozenset({State.TRIAGED, State.REJECTED}),
     State.TRIAGED: frozenset({State.REPRODUCED, State.NOT_REPRODUCIBLE, State.REJECTED}),
     State.REPRODUCED: frozenset({State.PATCH_PROPOSED, State.REJECTED}),
+    # cross_checker drives this edge (M2.5 / T9)
     State.PATCH_PROPOSED: frozenset({State.PATCH_APPLIED, State.REJECTED}),
     State.PATCH_APPLIED: frozenset({State.AWAITING_REVIEW}),
     State.AWAITING_REVIEW: frozenset({State.DONE, State.REJECTED}),
