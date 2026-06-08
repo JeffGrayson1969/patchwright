@@ -1,16 +1,7 @@
-"""Patch-plan agent — LLM Phase A of the two-phase patch generator (FR-PT-1).
-
-Pipeline (each invocation, from disk; no in-memory state per PRD §10.1 #3):
-  1. Read the triage_packet artifact to extract suspect file + symbol.
-  2. Extract the AST snippet for that symbol via LibCST (repo_context).
-  3. Pull per-project conventions from PatchwrightConfig.
-  4. Build a delimiter-wrapped prompt (T2 mitigation — untrusted content as data).
-  5. Call LLMProvider.complete(response_schema=PatchPlan).
-  6. Return AgentResult with REPRODUCED -> PATCH_PROPOSED transition.
-
-The LLM emits a *plan* only; it never writes files. The deterministic codemod
-(tools/codemod_python.py) is the only layer that touches source on disk.
-"""
+# Produces a Pydantic-validated PatchPlan (FR-PT-1 Phase A). The LLM cannot write
+# file mutations directly (PRD §10.1 #4); a separate codemod applies the plan, and
+# a human reviews it before commit. T1 backstop is the mandatory human-review gate
+# (CLAUDE.md #8), not this agent.
 
 from __future__ import annotations
 

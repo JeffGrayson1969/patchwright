@@ -1,21 +1,6 @@
-"""Deterministic application of a PatchPlan to a Python repo (FR-PT-1 Phase B).
-
-Apply ordering: operations run in the order given, top-to-bottom. Each operation
-is implemented as a LibCST transformer; the transformer rejects the operation
-loudly if its preconditions are not met (target function not found, target arg
-out of range, duplicate test name, etc.) — silent no-op would defeat the
-deterministic guarantee.
-
-Output:
-- `apply(plan, repo_root) -> dict[Path, str]` returns the *new* contents of
-  every file the plan touched. Files that already had the desired state
-  (idempotent operations) are still returned with their unchanged content.
-- `diff(repo_root, modified) -> str` produces a unified diff suitable for
-  PR creation.
-
-The codemod owns disk writes only via `write_modified()` — agents never call
-that directly; the orchestrator does after the plan is reviewed.
-"""
+# Applies a Pydantic-validated PatchPlan to source via LibCST (FR-PT-1 Phase B).
+# T1 mitigation lives in the mandatory human-review gate (CLAUDE.md #8), not here
+# — this layer assumes the plan has been reviewed before write_modified() is called.
 
 from __future__ import annotations
 
