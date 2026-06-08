@@ -78,3 +78,22 @@ def triage_registry(provider: object) -> Registry:
     r.register(TriageAgent(provider=provider))  # type: ignore[arg-type]
     r.register(noop_closer)
     return r
+
+
+def patch_plan_registry(provider: object, repo_root: object) -> Registry:
+    """Registry wired for triage + patch-plan (M2-plan Wave B).
+
+    Both provider and repo_root are typed as object to avoid import-cycle into
+    core/llm and pathlib at module load time.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    from patchwright.agents.noop_closer import agent as noop_closer  # noqa: PLC0415
+    from patchwright.agents.patch_plan import PatchPlanAgent  # noqa: PLC0415
+    from patchwright.agents.triage import TriageAgent  # noqa: PLC0415
+
+    r = Registry()
+    r.register(TriageAgent(provider=provider))  # type: ignore[arg-type]
+    r.register(PatchPlanAgent(provider=provider, repo_root=Path(str(repo_root))))  # type: ignore[arg-type]
+    r.register(noop_closer)
+    return r
