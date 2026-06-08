@@ -31,7 +31,8 @@ def test_load_case_replays_state(tmp_path: Path) -> None:
     _make_case(tmp_path, "case-1")
     record = load_case("case-1", tmp_path)
     assert record.case.id == "case-1"
-    assert record.case.state == "DONE"
+    # noop_closer emits TRIAGED->REJECTED; TRIAGED->DONE was a shortcut removed in review #3.
+    assert record.case.state == "REJECTED"
     assert len(record.entries) >= 1
     assert record.entries[0].kind == "case_opened"
 

@@ -1,12 +1,5 @@
-"""`patchwright hello` — P0 end-to-end demo.
-
-Steps:
-  1. Open a case using the bundled fixture report.
-  2. drive() the FSM through INTAKE -> TRIAGED -> DONE via noop_triage + noop_closer.
-  3. Print every journal entry as pretty JSON.
-  4. On a second invocation against the same --root, demonstrate replay
-     idempotence: no new entries, same last_hash.
-"""
+# patchwright hello — P0 end-to-end demo: INTAKE -> TRIAGED -> REJECTED via
+# noop_triage + noop_closer. Prints the journal and demonstrates replay idempotence.
 
 from __future__ import annotations
 
@@ -40,7 +33,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         "hello",
         help="Run the P0 end-to-end demo case through the FSM.",
         description=(
-            "Ingests a bundled fixture report, drives it INTAKE -> TRIAGED -> DONE, "
+            "Ingests a bundled fixture report, drives it INTAKE -> TRIAGED -> REJECTED, "
             "prints the journal, and demonstrates replay idempotence on a second run."
         ),
     )
