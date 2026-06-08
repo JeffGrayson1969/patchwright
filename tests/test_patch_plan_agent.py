@@ -15,6 +15,7 @@ from patchwright.agents.patch_plan import (
     VULN_DELIMITER,
     PatchPlanAgent,
     _build_user_message,
+    _get_snippet,
     _load_triage_packet,
 )
 from patchwright.core.artifacts import ArtifactStore, ReadOnlyArtifactStore
@@ -240,6 +241,33 @@ def test_load_triage_packet_helper(tmp_path: Path) -> None:
     loaded = _load_triage_packet(case, ro_store)
     assert loaded.case_id == case_id
     assert loaded.claim_type == "path traversal"
+
+
+# --------------------------------------------------------------------------- _get_snippet path-traversal containment (review #1)
+
+
+def test_get_snippet_rejects_path_traversal(tmp_path: Path) -> None:
+    """A traversal component (e.g. '../../../etc/passwd') must be skipped, not read."""
+    # Ensure the target outside repo_root exists so the only reason it's skipped
+    # is the containment check, not file-not-found.
+    outside = tmp_path.parent / "secret.txt"
+    outside.write_text("s3cr3t", encoding="utf-8")
+
+    packet = _make_triage_packet("case-trav", component="../secret.txt::read_file")
+    # _get_snippet must not raise, must not return the secret content.
+    result = _get_snippet(packet, tmp_path)
+    assert "s3cr3t" not in result
+    assert result == "(no code snippet available)"
+
+
+def test_get_snippet_accepts_legitimate_in_repo_path(tmp_path: Path) -> None:
+    """A valid in-repo file path succeeds and its content is returned."""
+    legitimate = tmp_path / "mymodule.py"
+    legitimate.write_text("def hello(): pass\n", encoding="utf-8")
+
+    packet = _make_triage_packet("case-legit", component="mymodule.py")
+    result = _get_snippet(packet, tmp_path)
+    assert "hello" in result
 
 
 # --------------------------------------------------------------------------- conventions in prompt

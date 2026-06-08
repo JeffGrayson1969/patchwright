@@ -137,6 +137,17 @@ def _get_snippet(packet: TriagePacket, repo_root: Path) -> str:
             symbol = ""
 
         candidate = repo_root / file_part
+        # Containment check: mirrors codemod_python._resolve_path so symlinks and
+        # '..' segments are fully resolved before comparison.
+        try:
+            candidate.resolve().relative_to(repo_root.resolve())
+        except ValueError:
+            log.warning(
+                "snippet: %s escapes repo_root — skipping (path traversal attempt?)",
+                file_part,
+            )
+            continue
+
         if not candidate.is_file():
             log.debug("snippet: %s not found under repo_root, skipping", file_part)
             continue
