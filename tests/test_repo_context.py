@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from patchwright.tools.repo_context import SymbolNotFound, extract_symbol_snippet
+from patchwright.tools.repo_context import (
+    SymbolNotFound,
+    extract_imports_only,
+    extract_symbol_snippet,
+)
 
 # --------------------------------------------------------------------------- fixtures
 
@@ -181,3 +185,80 @@ def test_cwe22_vulnerable_snippet(tmp_path: Path) -> None:
     )
     snippet = extract_symbol_snippet(fixture, "read_file")
     assert "open(filename)" in snippet
+
+
+# --------------------------------------------------------------------------- tests: disambiguation
+
+
+# Module with a module-level 'validate' and a same-named class method (fix #5).
+AMBIGUOUS_MODULE = """\
+from __future__ import annotations
+
+
+def validate(x: int) -> bool:
+    return x > 0
+
+
+class Foo:
+    def validate(self, x: int) -> bool:
+        return x != 0
+"""
+
+
+def test_bare_symbol_returns_module_level_not_method(tmp_path: Path) -> None:
+    """symbol='validate' must return the module-level function, not Foo.validate."""
+    p = _write(tmp_path, "amb.py", AMBIGUOUS_MODULE)
+    snippet = extract_symbol_snippet(p, "validate")
+    assert "return x > 0" in snippet
+    assert "return x != 0" not in snippet
+
+
+def test_dotted_symbol_returns_method_not_module_level(tmp_path: Path) -> None:
+    """symbol='Foo.validate' must return the class method, not the module-level fn."""
+    p = _write(tmp_path, "amb.py", AMBIGUOUS_MODULE)
+    snippet = extract_symbol_snippet(p, "Foo.validate")
+    assert "return x != 0" in snippet
+    assert "return x > 0" not in snippet
+
+
+# --------------------------------------------------------------------------- tests: extract_imports_only
+
+
+IMPORTS_AND_FUNCS = """\
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+
+def foo() -> None:
+    pass
+
+
+def bar() -> int:
+    return 42
+"""
+
+NO_IMPORTS = """\
+def baz() -> str:
+    return "hi"
+
+
+def qux() -> int:
+    return 0
+"""
+
+
+def test_extract_imports_only_returns_imports_not_bodies(tmp_path: Path) -> None:
+    p = _write(tmp_path, "imp.py", IMPORTS_AND_FUNCS)
+    result = extract_imports_only(p)
+    assert "import os" in result
+    assert "from pathlib import Path" in result
+    assert "def foo" not in result
+    assert "def bar" not in result
+
+
+def test_extract_imports_only_empty_when_no_imports(tmp_path: Path) -> None:
+    p = _write(tmp_path, "noimp.py", NO_IMPORTS)
+    result = extract_imports_only(p)
+    assert result == ""
