@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -136,10 +139,6 @@ def test_agent_does_not_import_secrets() -> None:
     the prompt — a real guarantee, unlike checking for a literal canary string
     that _build_user_message never receives anyway.
     """
-    import importlib
-    import importlib.util
-    import sys
-
     # Remove cached module so we get a fresh import graph inspection.
     mod_name = "patchwright.agents.patch_plan"
     if mod_name in sys.modules:
@@ -284,7 +283,7 @@ def test_get_snippet_accepts_legitimate_in_repo_path(tmp_path: Path) -> None:
     assert "hello" in result
 
 
-# --------------------------------------------------------------------------- fallback: imports + placeholder (#9)
+# ---------------------------------------------------------------- fallback: imports + placeholder
 
 
 def test_get_snippet_missing_symbol_returns_imports_and_placeholder(tmp_path: Path) -> None:
@@ -297,7 +296,7 @@ def test_get_snippet_missing_symbol_returns_imports_and_placeholder(tmp_path: Pa
 
     assert "import os" in result
     assert "no_such_symbol" in result  # placeholder names the missing symbol
-    assert "real_func" not in result   # no function body leaked
+    assert "real_func" not in result  # no function body leaked
 
 
 def test_get_snippet_missing_symbol_no_imports_returns_just_placeholder(tmp_path: Path) -> None:

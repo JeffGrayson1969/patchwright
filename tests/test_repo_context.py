@@ -221,7 +221,7 @@ def test_dotted_symbol_returns_method_not_module_level(tmp_path: Path) -> None:
     assert "return x > 0" not in snippet
 
 
-# --------------------------------------------------------------------------- tests: extract_imports_only
+# ---------------------------------------------------------------- tests: extract_imports_only
 
 
 IMPORTS_AND_FUNCS = """\

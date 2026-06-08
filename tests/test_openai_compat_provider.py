@@ -82,7 +82,7 @@ def test_empty_content_raises_response_error(monkeypatch: pytest.MonkeyPatch) ->
         OpenAICompatProvider().complete(system="s", user="u")
 
 
-# --------------------------------------------------------------------------- fix #8: content_filter → LLMRefusal
+# --------------------------------------------------------------------------- fix #8: content_filter
 
 
 def test_content_filter_raises_llm_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -105,9 +105,7 @@ def test_content_filter_raises_llm_refusal(monkeypatch: pytest.MonkeyPatch) -> N
 def test_stop_with_null_parsed_raises_response_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Control: finish_reason='stop' with parsed=None is a parse failure, not a refusal."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    fake_choice = SimpleNamespace(
-        message=SimpleNamespace(parsed=None), finish_reason="stop"
-    )
+    fake_choice = SimpleNamespace(message=SimpleNamespace(parsed=None), finish_reason="stop")
     fake_response = SimpleNamespace(choices=[fake_choice])
     fake_client = MagicMock()
     fake_client.beta.chat.completions.parse.return_value = fake_response
