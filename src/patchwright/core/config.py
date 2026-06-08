@@ -139,6 +139,34 @@ class ConventionsConfig(BaseModel):
     """Prefix for feature branches the patch agent creates."""
 
 
+class CrossCheckerConfig(BaseModel):
+    """Config for the M2.5 cross-checker agent (T9 mitigation).
+
+    In OSS single-provider mode (cross_checker.provider is None), the cross-checker
+    uses the same provider as the primary but with a different model and/or
+    temperature, plus a meaningfully different system prompt (skeptic framing).
+    Full multi-provider consensus is Shield-tier (PRD §12.2).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: Literal["anthropic", "openai_compat", "mcp_sampling"] | None = None
+    """None = reuse primary provider; set to use a different provider backend."""
+
+    model: str | None = None
+    """Model override for the cross-checker. None = provider default."""
+
+    temperature_delta: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=2.0,
+        description="Temperature offset from the primary provider (only applies in same-provider mode).",
+    )
+
+    system_prompt_style: Literal["skeptic"] = "skeptic"
+    """Cross-checker system prompt framing. 'skeptic' is the M2.5 default; room to add styles later."""
+
+
 # --------------------------------------------------------------------------- root
 
 
@@ -153,6 +181,7 @@ class PatchwrightConfig(BaseModel):
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     review: ReviewConfig = Field(default_factory=ReviewConfig)
     conventions: ConventionsConfig = Field(default_factory=ConventionsConfig)
+    cross_checker: CrossCheckerConfig = Field(default_factory=CrossCheckerConfig)
 
     # ---------- I/O ----------
 
