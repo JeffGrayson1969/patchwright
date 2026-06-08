@@ -140,13 +140,10 @@ class ConventionsConfig(BaseModel):
 
 
 class CrossCheckerConfig(BaseModel):
-    """Config for the M2.5 cross-checker agent (T9 mitigation).
-
-    In OSS single-provider mode (cross_checker.provider is None), the cross-checker
-    uses the same provider as the primary but with a different model and/or
-    temperature, plus a meaningfully different system prompt (skeptic framing).
-    Full multi-provider consensus is Shield-tier (PRD §12.2).
-    """
+    """OSS single-provider mode catches intent-mismatch attacks (e.g. wrong-CWE plans) and
+    prompt-injection survival. Does NOT defend against a compromised model whose output
+    distribution is itself the attack — full T9 mitigation requires Shield multi-provider
+    mode (PRD §12.2)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -156,11 +153,16 @@ class CrossCheckerConfig(BaseModel):
     model: str | None = None
     """Model override for the cross-checker. None = provider default."""
 
+    # reserved — not wired; see Field description
     temperature_delta: float = Field(
         default=0.3,
         ge=0.0,
         le=2.0,
-        description="Temperature offset from the primary (only applies in same-provider mode).",
+        description=(
+            "RESERVED — not wired. The LLMProvider Protocol does not expose temperature; "
+            "this field has no effect in any current provider. "
+            "Will be wired when the Protocol is extended."
+        ),
     )
 
     system_prompt_style: Literal["skeptic"] = "skeptic"
