@@ -16,6 +16,7 @@ from patchwright.agents.patch_plan import (
     PatchPlanAgent,
     _build_user_message,
     _get_snippet,
+    _imports_and_placeholder,
     _load_triage_packet,
 )
 from patchwright.core.artifacts import ArtifactStore, ReadOnlyArtifactStore
@@ -268,6 +269,47 @@ def test_get_snippet_accepts_legitimate_in_repo_path(tmp_path: Path) -> None:
     packet = _make_triage_packet("case-legit", component="mymodule.py")
     result = _get_snippet(packet, tmp_path)
     assert "hello" in result
+
+
+# --------------------------------------------------------------------------- fallback: imports + placeholder (#9)
+
+
+def test_get_snippet_missing_symbol_returns_imports_and_placeholder(tmp_path: Path) -> None:
+    """When a symbol is not found, fallback returns imports + placeholder, not function bodies."""
+    src = "import os\nfrom pathlib import Path\n\ndef real_func():\n    return 1\n"
+    (tmp_path / "mod.py").write_text(src, encoding="utf-8")
+
+    packet = _make_triage_packet("case-fb", component="mod.py::no_such_symbol")
+    result = _get_snippet(packet, tmp_path)
+
+    assert "import os" in result
+    assert "no_such_symbol" in result  # placeholder names the missing symbol
+    assert "real_func" not in result   # no function body leaked
+
+
+def test_get_snippet_missing_symbol_no_imports_returns_just_placeholder(tmp_path: Path) -> None:
+    """File with no imports produces only the placeholder, no function bodies."""
+    src = "def alpha():\n    return 1\n\ndef beta():\n    return 2\n"
+    (tmp_path / "noimp.py").write_text(src, encoding="utf-8")
+
+    packet = _make_triage_packet("case-noimp", component="noimp.py::ghost")
+    result = _get_snippet(packet, tmp_path)
+
+    assert "ghost" in result
+    assert "alpha" not in result
+    assert "beta" not in result
+
+
+def test_imports_and_placeholder_direct(tmp_path: Path) -> None:
+    """Unit-test _imports_and_placeholder directly."""
+    src = "import re\n\ndef do_stuff(): pass\n"
+    p = tmp_path / "x.py"
+    p.write_text(src, encoding="utf-8")
+
+    result = _imports_and_placeholder(p, "missing_fn")
+    assert "import re" in result
+    assert "missing_fn" in result
+    assert "do_stuff" not in result
 
 
 # --------------------------------------------------------------------------- conventions in prompt
