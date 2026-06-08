@@ -18,6 +18,37 @@ from patchwright.providers.mcp_sampling import MCPSamplingProvider
 from patchwright.providers.openai_compat import OpenAICompatProvider
 
 
+def build_cross_checker(config: PatchwrightConfig) -> LLMProvider:
+    """Construct the cross-checker's LLMProvider per the cross_checker config section.
+
+    OSS single-provider mode (cross_checker.provider is None): reuses the primary
+    provider type but with the cross-checker's model override applied. The load-bearing
+    distinction is the different system prompt (skeptic framing), not temperature —
+    the LLMProvider Protocol does not expose temperature so temperature_delta is
+    reserved for future provider implementations that do.
+
+    Multi-provider mode: if cross_checker.provider is set, builds a fresh provider
+    of that type, independent of the primary. No consensus aggregation — that's Shield
+    (PRD §12.2).
+    """
+    cc = config.cross_checker
+    _enforce_embargo(config.embargo, config.llm)
+
+    # Determine which provider type to use.
+    provider_name = cc.provider if cc.provider is not None else config.llm.provider
+    # Determine which model to use (cross-checker default is provider's own default).
+    model_override = cc.model  # None = provider default
+
+    # Build a synthetic LLMConfig for the cross-checker provider.
+    cross_llm = LLMConfig(
+        provider=provider_name,
+        model=model_override,
+        base_url=config.llm.base_url,  # carry base_url for openai_compat continuity
+        effort=config.llm.effort,
+    )
+    return _build(cross_llm)
+
+
 def provider_from_config(config: PatchwrightConfig) -> LLMProvider:
     """Instantiate the configured LLMProvider, enforcing embargo policy.
 
@@ -95,4 +126,4 @@ def _build(llm: LLMConfig) -> LLMProvider:
     raise LLMConfigError(f"unknown llm.provider: {llm.provider!r}")  # pragma: no cover
 
 
-__all__ = ["provider_from_config"]
+__all__ = ["provider_from_config", "build_cross_checker"]
