@@ -204,12 +204,19 @@ def test_repo_adapter_protocol_has_no_merge_surface(forbidden: str) -> None:
 # --------------------------------------------------------------------------- factory
 
 
-def test_default_repo_adapter_raises_until_github_lands() -> None:
-    """Exit criterion for AEG-421: factory raises a clear error when no impl
-    is registered yet. AEG-422 lands the github impl and this test should
-    then assert the returned object is a RepoAdapter."""
-    with pytest.raises(RepoConfigError, match="AEG-422"):
-        default_repo_adapter(PatchwrightConfig())
+def test_default_repo_adapter_returns_protocol_match() -> None:
+    """AEG-422: factory now resolves github -> GitHubRepoAdapter, which
+    structurally satisfies the Protocol."""
+    adapter = default_repo_adapter(PatchwrightConfig())
+    assert isinstance(adapter, RepoAdapter)
+    assert adapter.name == "github"
+
+
+def test_default_repo_adapter_unused_error_is_importable() -> None:
+    """RepoConfigError remains exported even when the github branch always
+    resolves — non-github adapters land via the plugin SDK (Wave C) and will
+    use this error path."""
+    assert issubclass(RepoConfigError, Exception)
 
 
 # --------------------------------------------------------------------------- RepoConfig
