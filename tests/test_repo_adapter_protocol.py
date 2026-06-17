@@ -34,9 +34,7 @@ def test_create_branch_result_is_frozen() -> None:
 
 def test_create_branch_result_extra_forbidden() -> None:
     with pytest.raises(ValidationError):
-        CreateBranchResult.model_validate(
-            {"ok": True, "branch": "x", "base_sha": "y", "extra": 1}
-        )
+        CreateBranchResult.model_validate({"ok": True, "branch": "x", "base_sha": "y", "extra": 1})
 
 
 def test_create_branch_result_reason_defaults_empty() -> None:
@@ -99,9 +97,7 @@ def test_open_pr_draft_result_allows_null_pr_when_failed() -> None:
 
 
 def test_open_pr_draft_result_is_frozen() -> None:
-    r = OpenPRDraftResult(
-        ok=True, pr_number=1, pr_url="http://x", branch="b", base_branch="main"
-    )
+    r = OpenPRDraftResult(ok=True, pr_number=1, pr_url="http://x", branch="b", base_branch="main")
     with pytest.raises(ValidationError):
         r.pr_number = 2  # type: ignore[misc]
 
@@ -154,9 +150,7 @@ def _make_stub_adapter() -> object:
             author_name: str,
             author_email: str,
         ) -> CommitFilesResult:
-            return CommitFilesResult(
-                ok=True, branch=branch, commit_sha="def", committed_paths=()
-            )
+            return CommitFilesResult(ok=True, branch=branch, commit_sha="def", committed_paths=())
 
         def open_pr_draft(
             self,
