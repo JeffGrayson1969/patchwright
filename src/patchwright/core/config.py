@@ -139,6 +139,23 @@ class ConventionsConfig(BaseModel):
     """Prefix for feature branches the patch agent creates."""
 
 
+class RepoConfig(BaseModel):
+    """Git-host backend for the post-transition PR effect runner.
+
+    Only 'github' is wired in P1 (AEG-422). GitLab / Bitbucket land in P2+
+    behind the same RepoAdapter Protocol — when they do, this becomes a
+    union via the plugin SDK (M5-plugin/M8, Wave C).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    adapter: Literal["github"] = "github"
+    """Which patchwright.adapters.repo_* implementation to instantiate."""
+
+    default_base_branch: str = "main"
+    """Default base for draft PRs. Per-case overrides come from PatchPlan."""
+
+
 class CrossCheckerConfig(BaseModel):
     """OSS single-provider mode catches intent-mismatch attacks (e.g. wrong-CWE plans) and
     prompt-injection survival. Does NOT defend against a compromised model whose output
@@ -184,6 +201,7 @@ class PatchwrightConfig(BaseModel):
     review: ReviewConfig = Field(default_factory=ReviewConfig)
     conventions: ConventionsConfig = Field(default_factory=ConventionsConfig)
     cross_checker: CrossCheckerConfig = Field(default_factory=CrossCheckerConfig)
+    repo: RepoConfig = Field(default_factory=RepoConfig)
 
     # ---------- I/O ----------
 
