@@ -132,7 +132,7 @@ def test_dump_yaml_round_trips() -> None:
 
 def test_dump_yaml_includes_all_sections() -> None:
     serialized = PatchwrightConfig().dump_yaml()
-    for section in ("llm", "embargo", "sandbox", "review", "conventions"):
+    for section in ("llm", "embargo", "sandbox", "review", "conventions", "repo"):
         assert f"{section}:" in serialized
 
 
