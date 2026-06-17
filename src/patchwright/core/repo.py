@@ -182,16 +182,14 @@ class RepoAdapter(Protocol):
 def default_repo_adapter(config: PatchwrightConfig) -> RepoAdapter:
     """Instantiate the configured RepoAdapter.
 
-    AEG-421 ships the contracts only; no backend is wired yet. AEG-422
-    replaces this body with a config-driven dispatch (github -> lazy
-    import GitHubRepoAdapter, etc.). Until then any call raises with a
-    clear pointer at the follow-up ticket.
+    Lazy-imports the backend so missing optional system deps (`gh`, etc.)
+    never break import of patchwright.core.
     """
-    raise RepoConfigError(
-        f"repo adapter {config.repo.adapter!r} not yet implemented — "
-        "github backend lands in AEG-422 (M2-pr.2). "
-        "Track: https://linear.app/aegisq/issue/AEG-422"
-    )
+    if config.repo.adapter == "github":
+        from patchwright.adapters.repo_github import GitHubRepoAdapter  # noqa: PLC0415
+
+        return GitHubRepoAdapter()
+    raise RepoConfigError(f"unknown repo.adapter: {config.repo.adapter!r}")  # pragma: no cover
 
 
 __all__ = [
