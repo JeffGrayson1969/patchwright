@@ -23,6 +23,7 @@ def test_all_defaults_validate() -> None:
     assert config.embargo.mode == "normal"
     assert config.sandbox.backend == "docker"
     assert config.conventions.test_command == "pytest"
+    assert config.conventions.test_image == "python:3.12-slim"
 
 
 def test_extra_top_level_field_rejected() -> None:

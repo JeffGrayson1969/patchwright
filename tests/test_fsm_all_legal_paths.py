@@ -20,6 +20,8 @@ LEGAL_EDGES: list[tuple[State, State]] = [
     (State.PATCH_PROPOSED, State.PATCH_APPLIED),
     (State.PATCH_PROPOSED, State.REJECTED),
     (State.PATCH_APPLIED, State.AWAITING_REVIEW),
+    # patch_apply routes test failures here (M2-pr.4 / AEG-424)
+    (State.PATCH_APPLIED, State.REJECTED),
     (State.AWAITING_REVIEW, State.DONE),
     (State.AWAITING_REVIEW, State.REJECTED),
 ]

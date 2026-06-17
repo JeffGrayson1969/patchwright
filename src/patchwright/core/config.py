@@ -135,6 +135,10 @@ class ConventionsConfig(BaseModel):
     test_command: str = "pytest"
     """How to invoke the test suite (e.g. 'pytest -q', 'python -m pytest')."""
 
+    test_image: str = "python:3.12-slim"
+    """Container image the M2-pr.4 patch_apply agent runs `test_command` inside.
+    Operator-overridable for non-Python projects or hardened bases."""
+
     branch_prefix: str = "patchwright/"
     """Prefix for feature branches the patch agent creates."""
 
