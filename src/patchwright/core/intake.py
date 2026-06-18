@@ -236,7 +236,7 @@ def default_intake_adapter(name: str, config: PatchwrightConfig) -> IntakeAdapte
     """
     del config  # reserved for adapter-specific config sections; not used yet
     if name == "json":
-        from patchwright.adapters.intake_json import JSONIntakeAdapter
+        from patchwright.adapters.intake_json import JSONIntakeAdapter  # noqa: PLC0415
 
         return JSONIntakeAdapter()
     if name == "ghsa":

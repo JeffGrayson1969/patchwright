@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from patchwright.adapters.intake_json import JSONIntakeAdapter
+from patchwright.core.config import PatchwrightConfig
 from patchwright.core.intake import (
     IntakeAdapter,
     IntakeError,
@@ -18,11 +19,10 @@ from patchwright.core.intake import (
     ParseResult,
     Reference,
     Report,
-    ReporterIdentity,
     Severity,
+    default_intake_adapter,
     pseudonymize_reporter_id,
 )
-
 
 # --------------------------------------------------------------------------- fixtures
 
@@ -45,7 +45,12 @@ def _full_osv() -> dict[str, Any]:
             {
                 "package": {"ecosystem": "npm", "name": "foo", "purl": "pkg:npm/foo"},
                 "versions": ["1.0.0", "1.0.1"],
-                "ranges": [{"type": "SEMVER", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.2"}]}],
+                "ranges": [
+                    {
+                        "type": "SEMVER",
+                        "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.2"}],
+                    }
+                ],
             }
         ],
         "references": [
@@ -82,9 +87,6 @@ def test_adapter_name_is_json() -> None:
 def test_default_factory_returns_json_adapter() -> None:
     """The M6.1 factory placeholder was a raise — confirm it now hands back
     a JSONIntakeAdapter on the 'json' route."""
-    from patchwright.core.config import PatchwrightConfig
-    from patchwright.core.intake import default_intake_adapter
-
     adapter = default_intake_adapter("json", PatchwrightConfig())
     assert isinstance(adapter, JSONIntakeAdapter)
 
