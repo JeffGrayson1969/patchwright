@@ -230,15 +230,21 @@ def pseudonymize_reporter_id(real_id: str) -> str:
 def default_intake_adapter(name: str, config: PatchwrightConfig) -> IntakeAdapter:
     """Instantiate the configured IntakeAdapter.
 
-    M6.1 ships contracts only; no backend is wired yet. AEG-443 lands the JSON
-    adapter; AEG-444 lands the GHSA adapter. Until then any call raises
-    `IntakeError` with a clear pointer at the follow-up tickets.
+    Lazy import mirrors `core.repo.default_repo_adapter` — the adapter
+    module stays out of the import path until an operator selects it,
+    so any future optional system deps don't break package import.
     """
-    raise IntakeError(
-        f"intake adapter {name!r} not yet implemented — "
-        "'json' lands in AEG-443 (M6.2), 'ghsa' lands in AEG-444 (M6.3). "
-        "Track: https://linear.app/aegisq/issue/AEG-377"
-    )
+    del config  # reserved for adapter-specific config sections; not used yet
+    if name == "json":
+        from patchwright.adapters.intake_json import JSONIntakeAdapter
+
+        return JSONIntakeAdapter()
+    if name == "ghsa":
+        raise IntakeError(
+            "intake adapter 'ghsa' not yet implemented — lands in AEG-444 (M6.3). "
+            "Track: https://linear.app/aegisq/issue/AEG-377"
+        )
+    raise IntakeError(f"unknown intake adapter {name!r}")
 
 
 __all__ = [

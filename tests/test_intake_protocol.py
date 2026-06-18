@@ -259,13 +259,23 @@ def test_pseudonymize_never_returns_real_id_substring() -> None:
 # --------------------------------------------------------------------------- factory
 
 
-def test_default_intake_adapter_raises_until_adapters_land() -> None:
-    """Exit criterion for AEG-377.1: factory raises a clear error pointing at
-    the follow-up tickets until M6.2 / M6.3 land."""
-    with pytest.raises(IntakeError, match="AEG-443"):
-        default_intake_adapter("json", PatchwrightConfig())
+def test_default_intake_adapter_routes_json() -> None:
+    """AEG-443 landed the 'json' route; it must return a real adapter instance
+    that satisfies the IntakeAdapter Protocol."""
+    adapter = default_intake_adapter("json", PatchwrightConfig())
+    assert isinstance(adapter, IntakeAdapter)
+    assert adapter.name == "json"
+
+
+def test_default_intake_adapter_ghsa_still_unimplemented() -> None:
+    """The 'ghsa' route remains a clear pointer to AEG-444 until M6.3 lands."""
     with pytest.raises(IntakeError, match="AEG-444"):
         default_intake_adapter("ghsa", PatchwrightConfig())
+
+
+def test_default_intake_adapter_rejects_unknown_name() -> None:
+    with pytest.raises(IntakeError, match="unknown intake adapter"):
+        default_intake_adapter("vince", PatchwrightConfig())
 
 
 def test_intake_error_is_an_exception() -> None:
