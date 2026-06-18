@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from patchwright.core.artifacts import ArtifactStore
 from patchwright.core.errors import IllegalTransition, StaleAgent
@@ -11,7 +14,68 @@ from patchwright.core.journal import Journal, now_iso
 from patchwright.core.models import AgentResult, Artifact, Case, JournalEntry
 from patchwright.core.registry import Registry
 
+if TYPE_CHECKING:
+    from patchwright.core.config import PatchwrightConfig
+
 log = logging.getLogger(__name__)
+
+
+# --------------------------------------------------------------------------- transition effects
+
+
+@dataclass(frozen=True)
+class EffectContext:
+    """Read-only handle the orchestrator passes to a registered effect.
+
+    Effects journal their own outcome via `journal.append(...)` — never raise.
+    The orchestrator re-replays the case after the effect runs to pick up any
+    journal entries the effect added (last_seq / last_hash advance).
+    """
+
+    case: Case
+    store: ArtifactStore
+    journal: Journal
+    config: PatchwrightConfig
+    workspace_root: Path
+
+
+TransitionKey = tuple[str, str]
+TransitionEffect = Callable[[EffectContext], None]
+
+
+@dataclass
+class TransitionEffects:
+    """Registry of post-transition side-effects keyed on (from_state, to_state).
+
+    Effects fire after a journaled transition + replay; they are the boundary
+    between PatchWright's pure FSM and external-world side-effects (PR creation,
+    notifications, etc.). Each effect is responsible for journaling its own
+    success / failure via `EffectContext.journal`.
+
+    An effect that raises is caught and logged — drive() never crashes because
+    a side-effect had a coding bug.
+    """
+
+    _effects: dict[TransitionKey, list[TransitionEffect]] = field(default_factory=dict)
+
+    def register(self, key: TransitionKey, fn: TransitionEffect) -> None:
+        self._effects.setdefault(key, []).append(fn)
+
+    def registered_for(self, key: TransitionKey) -> tuple[TransitionEffect, ...]:
+        return tuple(self._effects.get(key, ()))
+
+    def run(self, ctx: EffectContext, *, from_state: str) -> None:
+        key = (from_state, ctx.case.state)
+        for fn in self._effects.get(key, ()):
+            try:
+                fn(ctx)
+            except Exception:
+                log.exception(
+                    "transition effect %r raised for key %s; effect is responsible "
+                    "for journaling its own failure — continuing drive()",
+                    getattr(fn, "__name__", repr(fn)),
+                    key,
+                )
 
 
 class _Paths:
@@ -124,10 +188,23 @@ def open_case(
 # --------------------------------------------------------------------------- drive
 
 
-def drive(case_id: str, registry: Registry, root: Path) -> Case:
+def drive(
+    case_id: str,
+    registry: Registry,
+    root: Path,
+    *,
+    config: PatchwrightConfig | None = None,
+    effects: TransitionEffects | None = None,
+    workspace_root: Path | None = None,
+) -> Case:
     """Run agents on the case until terminal or no agent for the current state.
 
     Replay-after-every-transition: NFR-R-1/R-2 become runtime invariants.
+
+    Optional kwargs are for post-transition side-effects (AEG-425, M2-pr.5).
+    All three must be present for effects to fire; otherwise the behavior is
+    identical to P0 (no effects). This preserves back-compat for every existing
+    caller and test.
     """
     paths = _Paths(root, case_id)
     journal = Journal(paths.journal_dir)
@@ -136,6 +213,8 @@ def drive(case_id: str, registry: Registry, root: Path) -> Case:
     case = replay(journal, store)
     if case is None:
         raise ValueError(f"case {case_id} has not been opened")
+
+    effects_armed = effects is not None and config is not None and workspace_root is not None
 
     while case.state not in {str(s) for s in TERMINAL_STATES}:
         agent = registry.agent_for_state(case.state)
@@ -190,6 +269,24 @@ def drive(case_id: str, registry: Registry, root: Path) -> Case:
         case = replay(journal, store)
         if case is None:  # pragma: no cover - impossible if append above succeeded
             raise RuntimeError("replay returned None after appending transition")
+
+        # Post-transition side-effects (AEG-425). Effects journal their own outcome;
+        # they MAY append entries but MUST NOT raise. We re-replay to pick up any
+        # last_seq / last_hash advancement so the next agent iteration uses correct
+        # prev_hash.
+        if effects_armed:
+            assert effects is not None and config is not None and workspace_root is not None
+            ctx = EffectContext(
+                case=case,
+                store=store,
+                journal=journal,
+                config=config,
+                workspace_root=workspace_root,
+            )
+            effects.run(ctx, from_state=trans.from_state)
+            case = replay(journal, store)
+            if case is None:  # pragma: no cover - impossible after journal was non-empty
+                raise RuntimeError("replay returned None after running effects")
 
         if is_terminal(case.state):
             journal.append(
@@ -246,6 +343,10 @@ def stable_case_id(seed: bytes) -> str:
 
 
 __all__ = [
+    "EffectContext",
+    "TransitionEffect",
+    "TransitionEffects",
+    "TransitionKey",
     "case_root_paths",
     "drive",
     "open_case",
