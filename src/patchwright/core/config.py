@@ -143,6 +143,20 @@ class ConventionsConfig(BaseModel):
     """Prefix for feature branches the patch agent creates."""
 
 
+class IntakeConfig(BaseModel):
+    """Intake adapter selection for the M6 ingest pipeline.
+
+    The actual adapter is chosen per-call by `ingest()` since different
+    inputs use different formats (GHSA vs. generic JSON). This section
+    carries the default when no source is specified.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_adapter: Literal["json", "ghsa"] = "json"
+    """Used when `ingest()` is called without an explicit source."""
+
+
 class RepoConfig(BaseModel):
     """Git-host backend for the post-transition PR effect runner.
 
@@ -206,6 +220,7 @@ class PatchwrightConfig(BaseModel):
     conventions: ConventionsConfig = Field(default_factory=ConventionsConfig)
     cross_checker: CrossCheckerConfig = Field(default_factory=CrossCheckerConfig)
     repo: RepoConfig = Field(default_factory=RepoConfig)
+    intake: IntakeConfig = Field(default_factory=IntakeConfig)
 
     # ---------- I/O ----------
 
