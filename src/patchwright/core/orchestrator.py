@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -98,6 +98,8 @@ def _apply_entry(case: Case | None, entry: JournalEntry, _store: ArtifactStore) 
         raw_report_payload = entry.payload.get("raw_report")
         if raw_report_payload is not None:
             initial_artifacts.append(Artifact.model_validate(raw_report_payload))
+        for extra in entry.payload.get("extra_artifacts", ()):
+            initial_artifacts.append(Artifact.model_validate(extra))
         return Case(
             id=entry.case_id,
             state=entry.payload["initial_state"],
@@ -147,8 +149,15 @@ def open_case(
     raw_report: bytes,
     raw_report_kind: str = "raw_report",
     raw_report_media_type: str = "application/json",
+    extra_artifacts: Sequence[tuple[bytes, str, str]] | None = None,
 ) -> Case:
     """Open a new case: write the raw report artifact, append case_opened entry.
+
+    `extra_artifacts` is an optional sequence of `(data, kind, media_type)` tuples
+    persisted alongside the main `raw_report` and recorded in the same atomic
+    `case_opened` entry. Used by `ingest()` (AEG-444) to attach `raw_input`
+    (operator's original bytes, FR-IN-2) and `reporter_identity` (T10
+    separable PII artifact) when opening an intake case.
 
     Idempotent — if the journal already has a case_opened entry, returns the
     replayed Case unchanged.
@@ -169,6 +178,11 @@ def open_case(
         size=len(raw_report),
     )
 
+    extras: list[Artifact] = []
+    for data, kind, media_type in extra_artifacts or ():
+        sha = store.put(data)
+        extras.append(Artifact(id=sha, kind=kind, media_type=media_type, size=len(data)))
+
     entry = journal.append(
         case_id=case_id,
         kind="case_opened",
@@ -177,6 +191,7 @@ def open_case(
             "initial_state": str(INITIAL_STATE),
             "created_at": now_iso(),
             "raw_report": raw_artifact.model_dump(),
+            "extra_artifacts": [a.model_dump() for a in extras],
         },
         prev_hash=GENESIS_HASH,
         seq=0,
