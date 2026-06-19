@@ -28,7 +28,7 @@ Read `PRD.md` for vision, personas, functional requirements (FR-*), non-function
 Wave A — Foundation (done):
 - [x] **M1** — `LLMProvider` + Anthropic/OpenAI-compat providers + real `triage` agent (AEG-367)
 - [x] **M2-codemod** — LibCST deterministic patch apply + 3 CWE fixtures (AEG-368)
-- [x] **M3-shim** — `SandboxRunner` Protocol + Docker dev backend (AEG-369 — *Linear ticket still shows In Progress; needs to be closed*)
+- [x] **M3-shim** — `SandboxRunner` Protocol + Docker dev backend (AEG-369)
 - [x] **M4** — Human review CLI (`list`, `review`, `explain`) (AEG-370)
 - [x] **M5-config** — `patchwright.yaml` + provider factory + `embargo_mode: strict` gate (AEG-371)
 
@@ -36,11 +36,14 @@ Wave B — Integration (in flight):
 - [x] **M2-plan** — `patch_plan` agent (LLM Phase A, FR-PT-1)
 - [x] **M2.5** — `cross_checker` agent (T9 mitigation; gates `PATCH_PROPOSED → PATCH_APPLIED`)
 - [x] **M2-pr** — `RepoAdapter` Protocol + `gh`-backed `GitHubRepoAdapter` + `patch_apply` agent + `TransitionEffects` registry + end-to-end test (AEG-374 — FR-PT-3)
-- [ ] **M6** — Intake adapters (AEG-377):
+- [x] **M6** — Intake adapters (AEG-377):
   - [x] M6.1 — `IntakeAdapter` Protocol + `Report`/`ReporterIdentity` types + T10 helper (AEG-442)
-  - [ ] M6.2 — generic OSV-JSON `JSONIntakeAdapter` (AEG-443)
-  - [ ] M6.3 — `GHSAIntakeAdapter` + `ingest()` entry point + E2E test (AEG-444)
-- [ ] **M3-hard** — gVisor + network-deny + RO FS hardened sandbox + `reproduce` agent (AEG-375 — FR-RP-1/2, T6)
+  - [x] M6.2 — generic OSV-JSON `JSONIntakeAdapter` (AEG-443)
+  - [x] M6.3 — `GHSAIntakeAdapter` + `ingest()` entry point + E2E test (AEG-444)
+- [ ] **M3-hard** — gVisor + network-deny + RO FS hardened sandbox + `reproduce` agent (AEG-375 — FR-RP-1/2, T6):
+  - [ ] M3-hard.1 — `sandboxes/gvisor.py` (GVisorSandbox + structural tests) (AEG-461)
+  - [ ] M3-hard.2 — `agents/reproduce.py` (TRIAGED → REPRODUCED | NOT_REPRODUCIBLE | REJECTED) (AEG-462)
+  - [ ] M3-hard.3 — real CVE fixture + e2e + T6 negative tests (AEG-463)
 - [ ] **M3-encrypt** — Embargoed-case journal encryption via age/sops (AEG-376 — T4)
 
 Wave C — Productionization (not started):
