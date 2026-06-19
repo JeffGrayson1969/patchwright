@@ -121,10 +121,13 @@ def test_full_payload_round_trip() -> None:
             name="foo",
             purl="pkg:npm/foo",
             versions=("1.0.0", "1.0.1"),
-            ranges=(json.dumps(
-                {"type": "SEMVER", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.2"}]},
-                sort_keys=True, separators=(",", ":"),
-            ),),
+            ranges=(
+                json.dumps(
+                    {"type": "SEMVER", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.2"}]},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            ),
         ),
     )
 

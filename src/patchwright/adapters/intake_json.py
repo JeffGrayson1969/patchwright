@@ -324,8 +324,7 @@ def _split_contacts(contacts: Any) -> tuple[str | None, str | None]:
 
 def _identity_has_real_info(identity: ReporterIdentity) -> bool:
     return any(
-        x is not None
-        for x in (identity.real_name, identity.real_email, identity.real_handle)
+        x is not None for x in (identity.real_name, identity.real_email, identity.real_handle)
     )
 
 
