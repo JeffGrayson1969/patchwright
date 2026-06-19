@@ -23,10 +23,13 @@ from typing import TYPE_CHECKING, Literal, NamedTuple, Protocol, runtime_checkab
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from patchwright.core.hashing import sha256_b16
+from patchwright.core.hashing import canonical_json, sha256_b16
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from patchwright.core.config import PatchwrightConfig
+    from patchwright.core.models import Case
 
 
 class IntakeError(Exception):
@@ -240,11 +243,63 @@ def default_intake_adapter(name: str, config: PatchwrightConfig) -> IntakeAdapte
 
         return JSONIntakeAdapter()
     if name == "ghsa":
-        raise IntakeError(
-            "intake adapter 'ghsa' not yet implemented — lands in AEG-444 (M6.3). "
-            "Track: https://linear.app/aegisq/issue/AEG-377"
-        )
+        from patchwright.adapters.intake_ghsa import GHSAIntakeAdapter  # noqa: PLC0415
+
+        return GHSAIntakeAdapter()
     raise IntakeError(f"unknown intake adapter {name!r}")
+
+
+# --------------------------------------------------------------------------- high-level entry point
+
+
+def ingest(
+    raw: bytes,
+    *,
+    source: str,
+    root: Path,
+    config: PatchwrightConfig | None = None,
+    case_id_seed: bytes | None = None,
+) -> Case:
+    """Parse a raw inbound report and open a new Case (AEG-444 exit + AEG-377 exit).
+
+    Picks an IntakeAdapter by `source` (`"json"` / `"ghsa"`), normalizes the
+    payload to a Report + optional ReporterIdentity, and writes a single
+    atomic `case_opened` entry attaching three artifacts:
+
+      - `raw_input`         — operator's original bytes (FR-IN-2 preservation)
+      - `raw_report`        — `canonical_json(Report)` (what triage reads)
+      - `reporter_identity` — `canonical_json(ReporterIdentity)` when present
+                              (T10: PII lives only here, separable for future
+                              encryption by M3-encrypt / AEG-376)
+
+    `case_id_seed` is the deterministic seed for `stable_case_id`. When None,
+    the parsed Report's `source_id` is used — same advisory always gets the
+    same case id, which makes `ingest()` idempotent against duplicate drops.
+    """
+    from patchwright.core.config import PatchwrightConfig  # noqa: PLC0415
+    from patchwright.core.orchestrator import open_case, stable_case_id  # noqa: PLC0415
+
+    cfg = config if config is not None else PatchwrightConfig()
+    adapter = default_intake_adapter(source, cfg)
+    result = adapter.parse(raw)
+
+    report_bytes = canonical_json(result.report.model_dump(mode="json"))
+    seed = case_id_seed if case_id_seed is not None else result.report.source_id.encode("utf-8")
+    case_id = stable_case_id(seed)
+
+    extras: list[tuple[bytes, str, str]] = [(raw, "raw_input", "application/octet-stream")]
+    if result.identity is not None:
+        identity_bytes = canonical_json(result.identity.model_dump(mode="json"))
+        extras.append((identity_bytes, "reporter_identity", "application/json"))
+
+    return open_case(
+        case_id=case_id,
+        root=root,
+        raw_report=report_bytes,
+        raw_report_kind="raw_report",
+        raw_report_media_type="application/json",
+        extra_artifacts=extras,
+    )
 
 
 __all__ = [
@@ -257,5 +312,6 @@ __all__ = [
     "ReporterIdentity",
     "Severity",
     "default_intake_adapter",
+    "ingest",
     "pseudonymize_reporter_id",
 ]

@@ -267,10 +267,12 @@ def test_default_intake_adapter_routes_json() -> None:
     assert adapter.name == "json"
 
 
-def test_default_intake_adapter_ghsa_still_unimplemented() -> None:
-    """The 'ghsa' route remains a clear pointer to AEG-444 until M6.3 lands."""
-    with pytest.raises(IntakeError, match="AEG-444"):
-        default_intake_adapter("ghsa", PatchwrightConfig())
+def test_default_intake_adapter_routes_ghsa() -> None:
+    """AEG-444 landed the 'ghsa' route; it must return a real adapter instance
+    that satisfies the IntakeAdapter Protocol."""
+    adapter = default_intake_adapter("ghsa", PatchwrightConfig())
+    assert isinstance(adapter, IntakeAdapter)
+    assert adapter.name == "ghsa"
 
 
 def test_default_intake_adapter_rejects_unknown_name() -> None:
