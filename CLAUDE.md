@@ -10,21 +10,60 @@ Read `PRD.md` for vision, personas, functional requirements (FR-*), non-function
 
 ## Current status
 
-- **Phase:** P0 — Spike (pre-design, public review)
+- **Phase:** P1 — Triage + Patch MVP (in flight; per `phase1-work-plan.md`)
 - **Version:** PRD 0.2-public
 - **Owner:** Jeff Grayson
 - **Repo:** https://github.com/JeffGrayson1969/patchwright
 - **License:** Apache-2.0 (core); commercial license planned for Shield tier
-- **What exists today:** PRD, README, license, this file. No code yet.
 
-### P0 exit criteria (PRD §13)
+### P0 — closed on the code side
 - [x] Repo, license, code of conduct, security.txt
-- [x] Orchestrator skeleton
-- [x] One trivial agent (two, actually — `noop_triage` + `noop_closer`)
-- [ ] 1 OSS maintainer design partner identified ← human task
+- [x] Orchestrator skeleton + journal + FSM + artifact store
+- [x] Two trivial agents (`noop_triage`, `noop_closer`) — retained as reference impls
 - [x] Hello-world case completes end-to-end (`uv run patchwright hello`)
+- [ ] 1 OSS maintainer design partner identified ← human task; runs in parallel with P1 waves
 
-When the design-partner item closes, swap this checklist for the P1 checklist (PRD §13 → FR-IN-1/2, FR-TR-1/2/3, FR-RP-1/2, FR-PT-1/2/3, FR-HR-1/2/3, FR-PV-1/2/3, FR-CF-1/2, NFR-S-1/4/7/8/10).
+### P1 milestone checklist (PRD §13 — FR-IN-1/2/5, FR-TR-1/2/3, FR-RP-1/2, FR-PT-1/2/3, FR-HR-1/2/3, FR-PV-1/2/3, FR-CF-1/2, NFR-S-1/4/7/8/10)
+
+Wave A — Foundation (done):
+- [x] **M1** — `LLMProvider` + Anthropic/OpenAI-compat providers + real `triage` agent (AEG-367)
+- [x] **M2-codemod** — LibCST deterministic patch apply + 3 CWE fixtures (AEG-368)
+- [x] **M3-shim** — `SandboxRunner` Protocol + Docker dev backend (AEG-369 — *Linear ticket still shows In Progress; needs to be closed*)
+- [x] **M4** — Human review CLI (`list`, `review`, `explain`) (AEG-370)
+- [x] **M5-config** — `patchwright.yaml` + provider factory + `embargo_mode: strict` gate (AEG-371)
+
+Wave B — Integration (in flight):
+- [x] **M2-plan** — `patch_plan` agent (LLM Phase A, FR-PT-1)
+- [x] **M2.5** — `cross_checker` agent (T9 mitigation; gates `PATCH_PROPOSED → PATCH_APPLIED`)
+- [x] **M2-pr** — `RepoAdapter` Protocol + `gh`-backed `GitHubRepoAdapter` + `patch_apply` agent + `TransitionEffects` registry + end-to-end test (AEG-374 — FR-PT-3)
+- [ ] **M6** — Intake adapters (AEG-377):
+  - [x] M6.1 — `IntakeAdapter` Protocol + `Report`/`ReporterIdentity` types + T10 helper (AEG-442)
+  - [ ] M6.2 — generic OSV-JSON `JSONIntakeAdapter` (AEG-443)
+  - [ ] M6.3 — `GHSAIntakeAdapter` + `ingest()` entry point + E2E test (AEG-444)
+- [ ] **M3-hard** — gVisor + network-deny + RO FS hardened sandbox + `reproduce` agent (AEG-375 — FR-RP-1/2, T6)
+- [ ] **M3-encrypt** — Embargoed-case journal encryption via age/sops (AEG-376 — T4)
+
+Wave C — Productionization (not started):
+- [ ] **M5-plugin + M8** — Plugin SDK + SLSA L3 + cosign release pipeline (AEG-378)
+- [ ] **M7** — MCP server (stdio) with 8 tools per PRD §A.1 (AEG-379)
+
+Wave D — Pilot:
+- [ ] **M9** — Design-partner pilot + `0.1.0` release (AEG-380); blocked on design-partner identification
+
+### P1 exit gate (PRD §13)
+
+*"Design partner ships a real patch from a real report through PatchWright."* Plus: `patchwright serve --mcp` drives a case via the 8 MCP tools; `cosign verify` and `slsa-verifier` pass on `0.1.0`.
+
+### FSM as of today (`core/fsm.py`)
+
+```
+INTAKE          -> TRIAGED | REJECTED
+TRIAGED         -> REPRODUCED | NOT_REPRODUCIBLE | REJECTED
+REPRODUCED      -> PATCH_PROPOSED | REJECTED
+PATCH_PROPOSED  -> PATCH_APPLIED | REJECTED         (gated by cross_checker)
+PATCH_APPLIED   -> AWAITING_REVIEW | REJECTED       (PR opened via TransitionEffect)
+AWAITING_REVIEW -> DONE | REJECTED
+```
 
 ## Non-negotiable architectural commitments
 
