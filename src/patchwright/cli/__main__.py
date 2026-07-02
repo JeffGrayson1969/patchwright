@@ -5,7 +5,7 @@ import sys
 from collections.abc import Sequence
 
 from patchwright import __version__
-from patchwright.cli import explain, hello, init, journal, review
+from patchwright.cli import explain, hello, init, journal, review, serve
 from patchwright.cli import list as list_cmd
 
 
@@ -20,6 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     explain.register(sub)
     journal.register(sub)
     review.register(sub)
+    serve.register(sub)
 
     return p
 
