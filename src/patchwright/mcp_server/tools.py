@@ -7,8 +7,8 @@ returned as structured `{ok: False, error: ...}` rather than raised, so the
 calling agent (Claude Code, Cursor, Cline) gets an actionable message.
 
 Fully wired: intake_report, get_status, explain_case, triage_case,
-reproduce_poc, generate_patch_plan. Deferred (structured stub): apply_patch
-(cross-checker gate + PR open — needs the repo-effects layer) and
+reproduce_poc, generate_patch_plan, apply_patch (cross-checker gate + codemod +
+draft-PR effect; gated behind the operator's --allow-mutations). Stub:
 draft_advisory (CSAF/OpenVEX — P2 per PRD §A.1).
 """
 
@@ -22,6 +22,7 @@ from patchwright.core.cases import list_all_cases, load_case
 from patchwright.core.config import PatchwrightConfig
 from patchwright.core.evidence import render
 from patchwright.core.intake import ingest
+from patchwright.core.journal import Journal
 from patchwright.core.journal_crypto import cipher_for_reading
 from patchwright.core.orchestrator import case_root_paths, drive
 from patchwright.core.registry import Registry
@@ -40,6 +41,19 @@ def _bad_case_id(case_id: str) -> Json | None:
     if not case_id or "/" in case_id or "\\" in case_id or ".." in case_id:
         return _err(f"invalid case_id: {case_id!r}")
     return None
+
+
+def _has_human_approval(root: Path, case_id: str) -> bool:
+    """True iff the case has an operator-recorded 'approve' human_decision.
+
+    Written only by `patchwright review` (operator action), so a prompt-injected
+    host cannot fabricate it — the per-case half of apply_patch's approval gate
+    (CLAUDE.md #8: human approval at every outward transition)."""
+    journal = Journal(case_root_paths(root, case_id)["journal_dir"], cipher=cipher_for_reading())
+    return any(
+        e.kind == "human_decision" and e.payload.get("decision") == "approve"
+        for e in journal.read()
+    )
 
 
 # --------------------------------------------------------------------------- pure tools
@@ -158,24 +172,80 @@ def generate_patch_plan(
     return _run_step(root, config, case_id, registry)
 
 
-# --------------------------------------------------------------------------- deferred tools
+# ------------------------------------------------------------------ mutating / deferred tools
 
 
-def apply_patch(*, root: Path, config: PatchwrightConfig, case_id: str) -> Json:
+def apply_patch(  # noqa: PLR0911 — one early-return per guard/step
+    *,
+    root: Path,
+    config: PatchwrightConfig,
+    case_id: str,
+    workspace_root: str,
+    allow_mutations: bool,
+) -> Json:
     """Apply an approved patch plan and open a draft PR (PATCH_PROPOSED -> AWAITING_REVIEW).
 
-    Deferred: this step runs the cross-checker gate (T9) + deterministic codemod +
-    the PR-opening TransitionEffect, which require the repo-adapter/effects layer to
-    be wired through the MCP surface. Tracked as a follow-up; use the CLI patch flow
-    meanwhile."""
-    return {
-        "ok": False,
-        "status": "not_wired",
-        "note": (
-            "apply_patch (cross-checker gate + codemod + draft-PR effect) is not yet "
-            "exposed via MCP; use the CLI patch-apply/effects flow. Tracked as follow-up."
-        ),
-    }
+    Runs the cross-checker gate (T9) -> deterministic codemod + tests -> draft-PR
+    TransitionEffect. This is the only MCP tool with an outward-facing, mutating
+    side-effect, so it has TWO independent, host-uncontrollable gates (CLAUDE.md #8):
+      1. `allow_mutations` — a server-startup capability (`serve --mcp --allow-mutations`)
+      2. a per-case operator `approve` on record (from `patchwright review`)
+    A prompt-injected host controls neither. Opens a *draft* PR only — never merges."""
+    if not allow_mutations:
+        return {
+            "ok": False,
+            "status": "mutations_disabled",
+            "note": (
+                "apply_patch performs an outward-facing action (opens a draft PR) and is "
+                "disabled. The operator must restart the server with "
+                "`patchwright serve --mcp --allow-mutations` to enable it."
+            ),
+        }
+    if (bad := _bad_case_id(case_id)) is not None:
+        return bad
+    if not _has_human_approval(root, case_id):
+        return {
+            "ok": False,
+            "status": "approval_required",
+            "note": (
+                "apply_patch requires an operator 'approve' on record for this case. "
+                "Run `patchwright review` and approve before applying via MCP — a host "
+                "cannot self-approve an outward-facing PR (CLAUDE.md #8)."
+            ),
+        }
+    ws = Path(workspace_root)
+    if not ws.is_dir():
+        return _err(f"workspace_root does not exist or is not a directory: {workspace_root}")
+
+    from patchwright.agents.cross_checker import CrossCheckerAgent  # noqa: PLC0415
+    from patchwright.agents.patch_apply import PatchApplyAgent  # noqa: PLC0415
+    from patchwright.core.orchestrator import TransitionEffects  # noqa: PLC0415
+    from patchwright.core.repo_effects import register_default_effects  # noqa: PLC0415
+    from patchwright.providers.factory import build_cross_checker  # noqa: PLC0415
+
+    try:
+        cross_checker_provider = build_cross_checker(config)
+    except Exception as exc:
+        return _err(f"cross-checker LLM provider not configured: {exc}")
+
+    registry = Registry()
+    registry.register(CrossCheckerAgent(provider=cross_checker_provider))
+    registry.register(
+        PatchApplyAgent(
+            repo_root=ws,
+            sandbox=_sandbox_from_config(config),
+            case_root=root / "scratch",
+            config=config,
+        )
+    )
+    effects = TransitionEffects()
+    register_default_effects(effects)
+
+    try:
+        case = drive(case_id, registry, root, config=config, effects=effects, workspace_root=ws)
+    except Exception as exc:
+        return _err(f"{type(exc).__name__}: {exc}")
+    return {"ok": True, "case_id": case_id, "state": case.state}
 
 
 def draft_advisory(*, root: Path, config: PatchwrightConfig, case_id: str) -> Json:

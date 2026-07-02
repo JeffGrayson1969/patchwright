@@ -28,8 +28,13 @@ TOOL_NAMES = (
 )
 
 
-def build_server(root: Path, config: PatchwrightConfig) -> FastMCP:
-    """Construct the FastMCP server with all 8 tools bound to (root, config)."""
+def build_server(
+    root: Path, config: PatchwrightConfig, *, allow_mutations: bool = False
+) -> FastMCP:
+    """Construct the FastMCP server with all 8 tools bound to (root, config).
+
+    `allow_mutations` gates apply_patch's outward-facing draft-PR action; the
+    operator sets it at startup (serve --mcp --allow-mutations), not the host."""
     mcp = FastMCP("patchwright")
 
     @mcp.tool()
@@ -55,9 +60,18 @@ def build_server(root: Path, config: PatchwrightConfig) -> FastMCP:
         )
 
     @mcp.tool()
-    def apply_patch(case_id: str) -> dict[str, object]:
-        """Apply an approved plan and open a draft PR (PATCH_PROPOSED -> AWAITING_REVIEW)."""
-        return tools.apply_patch(root=root, config=config, case_id=case_id)
+    def apply_patch(case_id: str, workspace_root: str) -> dict[str, object]:
+        """Apply an approved plan and open a draft PR (PATCH_PROPOSED -> AWAITING_REVIEW).
+
+        workspace_root is the local checkout of the target repo. Requires the server
+        to be started with --allow-mutations."""
+        return tools.apply_patch(
+            root=root,
+            config=config,
+            case_id=case_id,
+            workspace_root=workspace_root,
+            allow_mutations=allow_mutations,
+        )
 
     @mcp.tool()
     def draft_advisory(case_id: str) -> dict[str, object]:

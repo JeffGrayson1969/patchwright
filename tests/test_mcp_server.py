@@ -15,6 +15,7 @@ import pytest
 from patchwright.core.config import PatchwrightConfig
 from patchwright.core.fsm import State
 from patchwright.core.llm import LLMConfigError
+from patchwright.core.reviews import record_human_decision
 from patchwright.mcp_server import tools
 from patchwright.mcp_server.server import TOOL_NAMES, build_server
 
@@ -130,10 +131,84 @@ def test_traversal_case_id_rejected(tmp_path: Path, bad: str) -> None:
         assert status["ok"] is False
 
 
-def test_apply_patch_is_deferred(tmp_path: Path) -> None:
-    result = tools.apply_patch(root=tmp_path, config=_cfg(), case_id="case-x")
+def test_apply_patch_disabled_without_allow_mutations(tmp_path: Path) -> None:
+    """The outward-facing PR action is off unless the operator opted in at startup."""
+    result = tools.apply_patch(
+        root=tmp_path,
+        config=_cfg(),
+        case_id="case-x",
+        workspace_root=str(tmp_path),
+        allow_mutations=False,
+    )
     assert result["ok"] is False
-    assert result["status"] == "not_wired"
+    assert result["status"] == "mutations_disabled"
+
+
+def test_apply_patch_rejects_traversal_case_id(tmp_path: Path) -> None:
+    result = tools.apply_patch(
+        root=tmp_path,
+        config=_cfg(),
+        case_id="../evil",
+        workspace_root=str(tmp_path),
+        allow_mutations=True,
+    )
+    assert result["ok"] is False
+    assert "invalid case_id" in result["error"]
+
+
+def test_apply_patch_requires_human_approval(tmp_path: Path) -> None:
+    """Second gate: a host cannot self-approve — needs an operator 'approve' on record."""
+    case_id = _open_case(tmp_path)  # opened, but never reviewed/approved
+    result = tools.apply_patch(
+        root=tmp_path,
+        config=_cfg(),
+        case_id=case_id,
+        workspace_root=str(tmp_path),
+        allow_mutations=True,
+    )
+    assert result["ok"] is False
+    assert result["status"] == "approval_required"
+
+
+def _approved_case(root: Path) -> str:
+    case_id = _open_case(root)
+    record_human_decision(
+        case_id=case_id, root=root, decision="approve", reason="ok", identity="operator"
+    )
+    return case_id
+
+
+def test_apply_patch_missing_workspace_errors(tmp_path: Path) -> None:
+    case_id = _approved_case(tmp_path)
+    result = tools.apply_patch(
+        root=tmp_path,
+        config=_cfg(),
+        case_id=case_id,
+        workspace_root=str(tmp_path / "nope"),
+        allow_mutations=True,
+    )
+    assert result["ok"] is False
+    assert "workspace_root" in result["error"]
+
+
+def test_apply_patch_without_provider_returns_structured_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case_id = _approved_case(tmp_path)
+
+    def boom(_config: object) -> object:
+        raise LLMConfigError("no key")
+
+    monkeypatch.setattr("patchwright.providers.factory.build_cross_checker", boom)
+    result = tools.apply_patch(
+        root=tmp_path,
+        config=_cfg(),
+        case_id=case_id,
+        workspace_root=str(tmp_path),
+        allow_mutations=True,
+    )
+    assert result["ok"] is False
+    assert "cross-checker" in result["error"].lower()
 
 
 def test_draft_advisory_is_p2(tmp_path: Path) -> None:
