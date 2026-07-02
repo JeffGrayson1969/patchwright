@@ -29,6 +29,7 @@ dependencies = [
     "libcst>=1.5",
     "pyyaml>=6.0",
     "cryptography>=44",
+    "mcp>=1.2",
 ]
 
 [project.urls]
