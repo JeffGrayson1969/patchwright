@@ -1,0 +1,17 @@
+# Code owners for PatchWright. Order matters — the last matching pattern wins.
+# Referenced by the "Strict Main Branch Protection" ruleset (require_code_owner_review).
+# See: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo.
+* @JeffGrayson1969
+
+# CI/CD and supply-chain surface — extra oversight.
+/.github/ @JeffGrayson1969
+
+# Dependency + project configuration.
+/pyproject.toml @JeffGrayson1969
+/uv.lock @JeffGrayson1969
+
+# Security policy and threat model.
+/SECURITY.md @JeffGrayson1969
+/PRD.md @JeffGrayson1969
