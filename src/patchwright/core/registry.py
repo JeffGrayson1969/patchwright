@@ -99,6 +99,35 @@ def patch_plan_registry(provider: object, repo_root: object) -> Registry:
     return r
 
 
+def reproduce_registry(
+    provider: object,
+    sandbox: object,
+    repo_root: object,
+    case_root: object,
+) -> Registry:
+    """Registry wired for triage + patch-plan + reproduce (M3-hard.2, AEG-462).
+
+    Adds the ReproduceAgent at the TRIAGED edge so `drive()` can take a case
+    through INTAKE -> TRIAGED -> REPRODUCED | NOT_REPRODUCIBLE. provider drives
+    triage + patch_plan; sandbox is any SandboxRunner (GVisorSandbox in prod,
+    DockerSandbox in dev, stub in tests). All typed as object to avoid
+    import-cycle at module load.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    from patchwright.agents.noop_closer import agent as noop_closer  # noqa: PLC0415
+    from patchwright.agents.patch_plan import PatchPlanAgent  # noqa: PLC0415
+    from patchwright.agents.reproduce import ReproduceAgent  # noqa: PLC0415
+    from patchwright.agents.triage import TriageAgent  # noqa: PLC0415
+
+    r = Registry()
+    r.register(TriageAgent(provider=provider))  # type: ignore[arg-type]
+    r.register(PatchPlanAgent(provider=provider, repo_root=Path(str(repo_root))))  # type: ignore[arg-type]
+    r.register(ReproduceAgent(sandbox=sandbox, case_root=Path(str(case_root))))  # type: ignore[arg-type]
+    r.register(noop_closer)
+    return r
+
+
 def cross_checker_registry(
     primary_provider: object,
     cross_checker_provider: object,

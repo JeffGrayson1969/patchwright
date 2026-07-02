@@ -139,6 +139,11 @@ class ConventionsConfig(BaseModel):
     """Container image the M2-pr.4 patch_apply agent runs `test_command` inside.
     Operator-overridable for non-Python projects or hardened bases."""
 
+    repro_image: str = "alpine:3.20"
+    """Default container image the reproduce agent runs PoCs inside when the
+    PocSpec does not pin its own image. Minimal Alpine keeps the attack surface
+    small for unknown PoCs."""
+
     branch_prefix: str = "patchwright/"
     """Prefix for feature branches the patch agent creates."""
 
