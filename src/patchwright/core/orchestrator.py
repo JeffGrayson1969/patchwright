@@ -11,6 +11,7 @@ from patchwright.core.errors import IllegalTransition, StaleAgent
 from patchwright.core.fsm import INITIAL_STATE, TERMINAL_STATES, is_legal, is_terminal
 from patchwright.core.hashing import GENESIS_HASH, sha256_b16
 from patchwright.core.journal import Journal, now_iso
+from patchwright.core.journal_crypto import cipher_for_writing
 from patchwright.core.models import AgentResult, Artifact, Case, JournalEntry
 from patchwright.core.registry import Registry
 
@@ -150,6 +151,7 @@ def open_case(
     raw_report_kind: str = "raw_report",
     raw_report_media_type: str = "application/json",
     extra_artifacts: Sequence[tuple[bytes, str, str]] | None = None,
+    config: PatchwrightConfig | None = None,
 ) -> Case:
     """Open a new case: write the raw report artifact, append case_opened entry.
 
@@ -159,11 +161,15 @@ def open_case(
     (operator's original bytes, FR-IN-2) and `reporter_identity` (T10
     separable PII artifact) when opening an intake case.
 
+    When `config.embargo.mode == 'strict'`, journal entries are AES-256-GCM
+    encrypted at rest (T4) — the operator key must be configured.
+
     Idempotent — if the journal already has a case_opened entry, returns the
     replayed Case unchanged.
     """
     paths = _Paths(root, case_id)
-    journal = Journal(paths.journal_dir)
+    cipher = cipher_for_writing(config) if config is not None else None
+    journal = Journal(paths.journal_dir, cipher=cipher)
     store = ArtifactStore(paths.artifacts_dir)
 
     existing = replay(journal, store)
@@ -222,7 +228,8 @@ def drive(
     caller and test.
     """
     paths = _Paths(root, case_id)
-    journal = Journal(paths.journal_dir)
+    cipher = cipher_for_writing(config) if config is not None else None
+    journal = Journal(paths.journal_dir, cipher=cipher)
     store = ArtifactStore(paths.artifacts_dir)
 
     case = replay(journal, store)

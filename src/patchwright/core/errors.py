@@ -20,3 +20,8 @@ class ChainBroken(JournalCorrupt):
 
 class ArtifactMissing(PatchWrightError):
     """A journal entry references an artifact sha that is not in the store."""
+
+
+class JournalEncrypted(PatchWrightError):
+    """A journal entry is encrypted (embargoed case) but no operator key was
+    supplied to decrypt it (T4). Provide PATCHWRIGHT_JOURNAL_KEY."""

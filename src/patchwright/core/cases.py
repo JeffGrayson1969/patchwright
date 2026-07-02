@@ -16,6 +16,7 @@ from pathlib import Path
 
 from patchwright.core.artifacts import ArtifactStore
 from patchwright.core.journal import Journal
+from patchwright.core.journal_crypto import JournalCipher
 from patchwright.core.models import Case, JournalEntry
 from patchwright.core.orchestrator import case_root_paths, replay
 
@@ -36,11 +37,13 @@ def list_case_ids(root: Path) -> list[str]:
     return sorted(d.name for d in journal_root.iterdir() if d.is_dir())
 
 
-def load_case(case_id: str, root: Path) -> CaseRecord:
+def load_case(case_id: str, root: Path, *, cipher: JournalCipher | None = None) -> CaseRecord:
     """Replay one case from disk. Raises FileNotFoundError if the case is
-    missing or has no journal entries."""
+    missing or has no journal entries. `cipher` decrypts embargoed journals
+    (T4); a JournalEncrypted error is raised for an encrypted journal with no
+    cipher."""
     paths = case_root_paths(root, case_id)
-    journal = Journal(paths["journal_dir"])
+    journal = Journal(paths["journal_dir"], cipher=cipher)
     store = ArtifactStore(paths["artifacts_dir"])
 
     case = replay(journal, store)
@@ -50,13 +53,14 @@ def load_case(case_id: str, root: Path) -> CaseRecord:
     return CaseRecord(case=case, entries=journal.read())
 
 
-def list_all_cases(root: Path) -> list[CaseRecord]:
+def list_all_cases(root: Path, *, cipher: JournalCipher | None = None) -> list[CaseRecord]:
     """Load every case under root. Skips empty/corrupt directories silently —
-    callers that need errors should call load_case() per id."""
+    callers that need errors should call load_case() per id. Encrypted cases
+    are skipped unless a decrypting `cipher` is supplied."""
     out: list[CaseRecord] = []
     for case_id in list_case_ids(root):
         try:
-            out.append(load_case(case_id, root))
+            out.append(load_case(case_id, root, cipher=cipher))
         except Exception:
             # Tolerate junk dirs without crashing the list command.
             continue

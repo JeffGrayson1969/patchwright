@@ -11,10 +11,13 @@ the audit trail is intact.
 
 T10 mitigation: every adapter MUST return a `Report` whose `reporter_id` is
 the pseudonymous output of `pseudonymize_reporter_id(real_id)`. The real
-identity (if known) is returned separately as `ReporterIdentity`, which the
-caller stores in its own artifact for future encryption by M3-encrypt
-(AEG-376). The structural separation means a forgetful adapter cannot leak
-PII into the `Report` artifact that triage + the journal read.
+identity (if known) is returned separately as `ReporterIdentity`, stored in
+its own artifact. The structural separation means a forgetful adapter cannot
+leak PII into the `Report` artifact that triage + the journal read.
+
+Note: M3-encrypt (AEG-376) encrypts the *journal* at rest for embargoed cases.
+At-rest encryption of the artifact *store* (raw_input / raw_report /
+reporter_identity blobs) is not yet implemented — tracked as follow-up.
 """
 
 from __future__ import annotations
@@ -148,9 +151,10 @@ class Report(BaseModel):
 class ReporterIdentity(BaseModel):
     """Real reporter identity. Stored as a separate artifact (kind='reporter_identity').
 
-    M3-encrypt (AEG-376) will wrap this artifact with at-rest encryption. Until
-    then it's stored plaintext but structurally separate from `Report`, so a
-    bug in any single adapter cannot leak PII into the public artifact chain.
+    Stored plaintext today but structurally separate from `Report`, so a bug in
+    any single adapter cannot leak PII into the public artifact chain. At-rest
+    encryption of the artifact store is a follow-up to AEG-376 (which encrypts
+    the journal, not the artifact blobs).
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -269,8 +273,8 @@ def ingest(
       - `raw_input`         — operator's original bytes (FR-IN-2 preservation)
       - `raw_report`        — `canonical_json(Report)` (what triage reads)
       - `reporter_identity` — `canonical_json(ReporterIdentity)` when present
-                              (T10: PII lives only here, separable for future
-                              encryption by M3-encrypt / AEG-376)
+                              (T10: PII lives only here, structurally separable;
+                              artifact-store at-rest encryption is follow-up)
 
     `case_id_seed` is the deterministic seed for `stable_case_id`. When None,
     the parsed Report's `source_id` is used — same advisory always gets the
@@ -299,6 +303,7 @@ def ingest(
         raw_report_kind="raw_report",
         raw_report_media_type="application/json",
         extra_artifacts=extras,
+        config=cfg,
     )
 
 
