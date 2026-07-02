@@ -1,0 +1,113 @@
+# Release pipeline (AEG-378, M8) — build → SLSA L3 provenance → cosign keyless
+# → TestPyPI + GitHub Release. Mitigates T8 (supply-chain attack on PatchWright).
+#
+# Trigger: push a tag `v*` (e.g. v0.1.0-rc1), or run manually via the Actions UI.
+#
+# OPERATOR SETUP REQUIRED (one-time) before the publish job succeeds:
+#   1. Bump `version` in pyproject.toml to match the tag (or adopt hatch-vcs).
+#   2. TestPyPI trusted publishing: on test.pypi.org add a trusted publisher for
+#      this repo + workflow `release.yml` + environment `testpypi`
+#      (https://docs.pypi.org/trusted-publishers/). No API token needed.
+#   3. Create a GitHub Environment named `testpypi` (Settings → Environments).
+# cosign is keyless (GitHub OIDC) — no secret required.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to TestPyPI (manual runs)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist + wheel
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Build
+        run: uv build
+      - name: Compute SLSA subject hashes
+        id: hash
+        working-directory: dist
+        run: echo "hashes=$(sha256sum ./* | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  provenance:
+    name: SLSA L3 provenance
+    needs: [build]
+    permissions:
+      actions: read # read the workflow run for provenance
+      id-token: write # keyless signing of the provenance
+      contents: write # attach provenance to the GitHub Release (on tag)
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: ${{ startsWith(github.ref, 'refs/tags/') }}
+
+  sign:
+    name: cosign keyless sign
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC for keyless cosign
+      contents: write # upload signatures to the Release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign each artifact (sign-blob, keyless)
+        run: |
+          set -euo pipefail
+          for f in dist/*.whl dist/*.tar.gz; do
+            cosign sign-blob --yes \
+              --output-signature "${f}.sig" \
+              --output-certificate "${f}.crt" \
+              "${f}"
+          done
+      - name: Attach artifacts + signatures to the Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.sig
+            dist/*.crt
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [build, provenance, sign]
+    if: startsWith(github.ref, 'refs/tags/') || inputs.publish
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write # trusted publishing (no API token)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
