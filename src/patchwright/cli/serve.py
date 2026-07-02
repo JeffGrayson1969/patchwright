@@ -20,6 +20,11 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     )
     p.add_argument("--mcp", action="store_true", help="Run the MCP server (stdio).")
     p.add_argument(
+        "--allow-mutations",
+        action="store_true",
+        help="Enable the apply_patch tool (opens draft PRs). Off by default.",
+    )
+    p.add_argument(
         "--root",
         type=Path,
         default=None,
@@ -45,6 +50,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
     # Imported lazily so the rest of the CLI doesn't pay the MCP import cost.
     from patchwright.mcp_server.server import build_server  # noqa: PLC0415
 
-    server = build_server(root, config)
+    server = build_server(root, config, allow_mutations=args.allow_mutations)
     server.run()  # FastMCP defaults to stdio transport
     return 0
