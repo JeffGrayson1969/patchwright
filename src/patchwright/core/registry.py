@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import importlib.metadata
 import logging
+from collections.abc import Iterable
 
+from patchwright.core.plugins import PluginPolicy
 from patchwright.core.protocols import Agent
 
 log = logging.getLogger(__name__)
 
 AGENT_ENTRY_POINT_GROUP = "patchwright.plugins.agents"
+
+
+def _entry_point_dist_name(ep: importlib.metadata.EntryPoint) -> str | None:
+    """Best-effort distribution name for an entry point (Python 3.10+ has ep.dist)."""
+    dist = getattr(ep, "dist", None)
+    name = getattr(dist, "name", None)
+    return name if isinstance(name, str) else None
 
 
 class Registry:
@@ -31,19 +40,46 @@ class Registry:
     def load_entry_points(
         self,
         group: str = AGENT_ENTRY_POINT_GROUP,
-    ) -> None:
-        """Load all installed entry points in the given group."""
-        try:
-            eps = importlib.metadata.entry_points(group=group)
-        except Exception:  # pragma: no cover - very old Python only
-            return
+        *,
+        policy: PluginPolicy | None = None,
+        entry_points: Iterable[importlib.metadata.EntryPoint] | None = None,
+    ) -> list[str]:
+        """Load installed entry points in `group`, enforcing the plugin trust policy.
+
+        Untrusted plugins (distribution not first-party and not in the operator's
+        trust store, with allow_unsigned off) are refused at load time (NFR-S-8):
+        skipped with a warning, never loaded. Returns the names actually loaded.
+
+        `policy` defaults to the secure default (first-party only). `entry_points`
+        is injectable for tests; otherwise discovered via importlib.metadata."""
+        policy = policy or PluginPolicy.default()
+        if entry_points is not None:
+            eps: Iterable[importlib.metadata.EntryPoint] = entry_points
+        else:
+            try:
+                eps = importlib.metadata.entry_points(group=group)
+            except Exception:  # pragma: no cover - very old Python only
+                return []
+
+        loaded: list[str] = []
         for ep in eps:
+            dist_name = _entry_point_dist_name(ep)
+            if not policy.allows(dist_name):
+                log.warning(
+                    "refusing untrusted plugin %r (distribution %r not in trust store); "
+                    "add it to plugins.trusted or set plugins.allow_unsigned",
+                    ep.name,
+                    dist_name,
+                )
+                continue
             try:
                 obj = ep.load()
             except Exception as exc:  # pragma: no cover - skip broken plugin
                 log.warning("failed to load entry point %s: %s", ep.name, exc)
                 continue
             self.register(obj)
+            loaded.append(ep.name)
+        return loaded
 
 
 def default_registry() -> Registry:

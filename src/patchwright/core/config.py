@@ -14,9 +14,8 @@ Sections:
 
 This file does NOT load secrets — those live in OS keychain via core/secrets.
 
-Plugin SDK config (FR-CF-2) is intentionally deferred to Wave C with M8
-(same signing toolchain). When it lands, a `plugins:` section will be
-added here.
+- plugins: trust store for third-party entry-point plugins (FR-CF-2, NFR-S-8).
+  Untrusted plugins are refused at load time unless `allow_unsigned: true`.
 """
 
 from __future__ import annotations
@@ -212,6 +211,28 @@ class CrossCheckerConfig(BaseModel):
 # --------------------------------------------------------------------------- root
 
 
+class PluginConfig(BaseModel):
+    """Trust store for third-party entry-point plugins (FR-CF-2, NFR-S-8).
+
+    Runtime enforcement is a trust-store allowlist: first-party plugins (shipped
+    in the `patchwright` distribution) are always trusted; any other entry-point
+    plugin is refused at load time unless its distribution is in `trusted` — or
+    `allow_unsigned` is set. Cryptographic signing of plugin artifacts happens at
+    distribution time via cosign (see docs/plugins.md); this section is the
+    operator's load-time gate. T8 mitigation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    allow_unsigned: bool = False
+    """When True, load ALL discovered plugins regardless of trust (dev only)."""
+
+    trusted: list[str] = Field(
+        default_factory=list,
+        description="Distribution names to trust beyond the first-party 'patchwright'.",
+    )
+
+
 class PatchwrightConfig(BaseModel):
     """Top-level config. Every section has a sane default; the entire file
     is optional (an empty patchwright.yaml is valid and yields all defaults)."""
@@ -226,6 +247,7 @@ class PatchwrightConfig(BaseModel):
     cross_checker: CrossCheckerConfig = Field(default_factory=CrossCheckerConfig)
     repo: RepoConfig = Field(default_factory=RepoConfig)
     intake: IntakeConfig = Field(default_factory=IntakeConfig)
+    plugins: PluginConfig = Field(default_factory=PluginConfig)
 
     # ---------- I/O ----------
 
