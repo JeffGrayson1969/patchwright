@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from patchwright.core.cases import CaseRecord, list_all_cases
+from patchwright.core.journal_crypto import cipher_for_reading
 
 
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -32,7 +33,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def cmd_list(args: argparse.Namespace) -> int:
     root: Path = args.root or Path.cwd()
-    cases = list_all_cases(root)
+    cases = list_all_cases(root, cipher=cipher_for_reading())
     if args.state:
         cases = [c for c in cases if c.case.state == args.state]
 

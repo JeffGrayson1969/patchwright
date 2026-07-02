@@ -8,7 +8,9 @@ from pathlib import Path
 
 from patchwright.core.artifacts import ArtifactStore
 from patchwright.core.cases import load_case
+from patchwright.core.errors import JournalEncrypted
 from patchwright.core.evidence import render
+from patchwright.core.journal_crypto import cipher_for_reading
 from patchwright.core.orchestrator import case_root_paths
 
 
@@ -35,7 +37,10 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 def cmd_explain(args: argparse.Namespace) -> int:
     root: Path = args.root or Path.cwd()
     try:
-        record = load_case(args.case_id, root)
+        record = load_case(args.case_id, root, cipher=cipher_for_reading())
+    except JournalEncrypted as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except FileNotFoundError as exc:
         print(str(exc), file=sys.stderr)
         return 1
