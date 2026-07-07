@@ -32,7 +32,7 @@ Wave A — Foundation (done):
 - [x] **M4** — Human review CLI (`list`, `review`, `explain`) (AEG-370)
 - [x] **M5-config** — `patchwright.yaml` + provider factory + `embargo_mode: strict` gate (AEG-371)
 
-Wave B — Integration (in flight):
+Wave B — Integration (done):
 - [x] **M2-plan** — `patch_plan` agent (LLM Phase A, FR-PT-1)
 - [x] **M2.5** — `cross_checker` agent (T9 mitigation; gates `PATCH_PROPOSED → PATCH_APPLIED`)
 - [x] **M2-pr** — `RepoAdapter` Protocol + `gh`-backed `GitHubRepoAdapter` + `patch_apply` agent + `TransitionEffects` registry + end-to-end test (AEG-374 — FR-PT-3)
@@ -40,18 +40,20 @@ Wave B — Integration (in flight):
   - [x] M6.1 — `IntakeAdapter` Protocol + `Report`/`ReporterIdentity` types + T10 helper (AEG-442)
   - [x] M6.2 — generic OSV-JSON `JSONIntakeAdapter` (AEG-443)
   - [x] M6.3 — `GHSAIntakeAdapter` + `ingest()` entry point + E2E test (AEG-444)
-- [ ] **M3-hard** — gVisor + network-deny + RO FS hardened sandbox + `reproduce` agent (AEG-375 — FR-RP-1/2, T6):
-  - [ ] M3-hard.1 — `sandboxes/gvisor.py` (GVisorSandbox + structural tests) (AEG-461)
-  - [ ] M3-hard.2 — `agents/reproduce.py` (TRIAGED → REPRODUCED | NOT_REPRODUCIBLE | REJECTED) (AEG-462)
-  - [ ] M3-hard.3 — real CVE fixture + e2e + T6 negative tests (AEG-463)
-- [ ] **M3-encrypt** — Embargoed-case journal encryption via age/sops (AEG-376 — T4)
+- [x] **M3-hard** — gVisor + network-deny + RO FS hardened sandbox + `reproduce` agent (AEG-375 — FR-RP-1/2, T6):
+  - [x] M3-hard.1 — `sandboxes/gvisor.py` (GVisorSandbox + structural tests) (AEG-461)
+  - [x] M3-hard.2 — `agents/reproduce.py` (TRIAGED → REPRODUCED | NOT_REPRODUCIBLE | REJECTED) (AEG-462)
+  - [x] M3-hard.3 — real CVE fixture (CVE-2007-4559) + e2e + T6 negative tests (AEG-463)
+- [x] **M3-encrypt** — Embargoed-case journal encryption, **AES-256-GCM** (quantum-safe; age/X25519 rejected) (AEG-376 — T4)
 
-Wave C — Productionization (not started):
-- [ ] **M5-plugin + M8** — Plugin SDK + SLSA L3 + cosign release pipeline (AEG-378)
-- [ ] **M7** — MCP server (stdio) with 8 tools per PRD §A.1 (AEG-379)
+Wave C — Productionization (code-complete):
+- [x] **M7** — MCP server (`serve --mcp`, stdio) with 8 tools per PRD §A.1; `apply_patch` drives `PATCH_PROPOSED → AWAITING_REVIEW` behind a startup capability + per-case human-approval gate (AEG-379, AEG-544)
+- [~] **M5-plugin + M8** — plugin trust store + SLSA L3 + cosign `release.yml` **code landed** (AEG-378); the `0.1.0-rc1` publish + `cosign`/`slsa-verifier` verification is operator-run (AEG-545)
 
 Wave D — Pilot:
-- [ ] **M9** — Design-partner pilot + `0.1.0` release (AEG-380); blocked on design-partner identification
+- [ ] **M9** — Design-partner pilot + `0.1.0` release (AEG-380); blocked on design-partner identification + AEG-545
+
+Deferred hardening (tracked, not P1-exit-blocking): journal ed25519 signing (AEG-304), artifact-store at-rest encryption (AEG-543).
 
 ### P1 exit gate (PRD §13)
 

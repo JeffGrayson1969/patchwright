@@ -50,7 +50,7 @@ We will not pursue legal action against you for good-faith security research tha
 
 ## Supported versions
 
-PatchWright is pre-alpha (Phase 0). There are no released versions yet. When releases begin, only the latest minor release receives security backports until 1.0; from 1.0 we will publish a supported-versions matrix here.
+PatchWright is alpha (Phase 1). The first pre-release (`0.1.0-rc1`) is landing on TestPyPI; there is no stable release yet. Until 1.0, only the latest pre-release receives security fixes; from 1.0 we will publish a supported-versions matrix here.
 
 ## Hall of fame
 
