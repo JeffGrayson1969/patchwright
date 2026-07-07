@@ -1,6 +1,6 @@
 [project]
 name = "patchwright"
-version = "0.0.0"
+version = "0.1.0rc1"
 description = "Open-source, model-agnostic agent runtime for vulnerability triage, patching, and disclosure."
 readme = "README.md"
 requires-python = ">=3.12"
