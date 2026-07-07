@@ -3,14 +3,16 @@
 > Open-source, model-agnostic agent runtime that turns a vulnerability finding into a reviewed patch and a published advisory.
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#project-status)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](#project-status)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 
 ---
 
 ## Project status
 
-**Pre-alpha. Phase 0 — Spike.** There is no installable release yet. This repository currently contains the [PRD](PRD.md), the Phase 0 spike plan, and the engineering scaffold. Watch the repo or open an issue if you want to be notified when the first usable build lands.
+**Alpha. Phase 1 — Triage + Patch MVP.** The engineering for P1 is code-complete through Wave C. Working today: OSV/GHSA intake, retrieval-assisted triage, sandboxed reproduction (Docker dev backend, gVisor hardened backend with network-deny + read-only FS), two-phase patch generation (LLM plan → LibCST codemod) gated by a cross-checker agent, a draft-PR effect, the human-review CLI, embargoed-case journal encryption, and an **MCP server** that lets any MCP host (Claude Code, Cursor, Cline, …) drive a case end-to-end. Releases are built with SLSA provenance and cosign-signed.
+
+The first pre-release, **`0.1.0-rc1`**, is landing on TestPyPI. What remains for P1 is a design-partner pilot — see [Contributing](#contributing) if you maintain an OSS project being hit by AI-generated reports. Until the release lands, run [from source](#getting-started-pre-release).
 
 ---
 
@@ -43,6 +45,26 @@ finding ──▶ │  Triage  │──▶│ Reproduce│──▶│  Patch  
 - **Disclose.** Run the embargo timer; on lift, file the CVE, publish the advisory, fan out notifications to `security.txt` contacts and Dependency-Track instances.
 
 Every transition lands in an append-only, hash-chained, signed journal that doubles as the system's only state store. Re-running on the same journal produces the same result.
+
+---
+
+## Getting started (pre-release)
+
+> `0.1.0-rc1` is landing on TestPyPI; until then, run from source with [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/JeffGrayson1969/patchwright
+cd patchwright
+uv sync
+
+# Drive the bundled demo case end-to-end through the FSM
+uv run patchwright hello
+
+# Or expose PatchWright to any MCP host (Claude Code, Cursor, Cline, …)
+uv run patchwright serve --mcp
+```
+
+CLI verbs: `init`, `ingest`, `list`, `review`, `explain`, `journal`, `serve`, `hello`. Writing a plugin? See [`docs/plugins.md`](docs/plugins.md).
 
 ---
 
@@ -83,8 +105,8 @@ See [PRD §10](PRD.md#10-architecture) for the full architectural rationale.
 
 | Phase | Scope | Status |
 |---|---|---|
-| **P0 — Spike** | Repo, license, governance, orchestrator skeleton, one trivial agent, hello-world end-to-end | **In progress** |
-| **P1 — Triage + Patch MVP** | Intake, dedup, sandboxed repro, two-phase patch, CLI review, MCP server, model-agnostic `LLMProvider` | Planned |
+| **P0 — Spike** | Repo, license, governance, orchestrator skeleton, one trivial agent, hello-world end-to-end | ✅ **Done** |
+| **P1 — Triage + Patch MVP** | Intake, dedup, sandboxed repro, two-phase patch, CLI review, MCP server, model-agnostic `LLMProvider` | **In progress** — code-complete through Wave C; `0.1.0-rc1` + design-partner pilot next |
 | **P2 — Disclosure orchestration** | CSAF / OpenVEX / CVE Services, embargo timer, notification fan-out, SARIF + AI-scanner intake | Planned |
 | **P3 — Enterprise & coordinator adapters** | VINCE, Web UI, Slack/Linear, Jira/GitLab/Bitbucket, multi-repo coordinated patch campaigns | Planned |
 | **P4 — Discovery hooks + Shield tier GA** | Optional IronCurtain-style discovery; commercial Shield tier productized | Planned |
