@@ -1,5 +1,21 @@
 # CLAUDE.md — PatchWright
 
+## Agent & Contributor Standards
+
+**[.claude/agents/MANDATORY_STANDARDS.md](.claude/agents/MANDATORY_STANDARDS.md)** is the
+cross-team ruleset every subagent in `.claude/agents/` requires by name, and it applies to
+human contributors equally. It is shared across all AegisQ product repos via
+`~/aegisq/.shared-agents/` — edit it there, not per-repo, so the products cannot drift into
+different definitions of "mandatory".
+
+Covers: security gates that must be able to fail (`exit-code: '1'`, SARIF, no deferring
+findings into a backlog), verifying against the built artifact rather than the source,
+falsifying every guard, honest reporting, tests, commit discipline, configuration, and
+production safety.
+
+On a fresh clone the symlink dangles until `setup-shared-agents.sh` has run.
+
+
 Working notes for Claude Code sessions in this repo. Source of truth for *what* we're building is `PRD.md`; this file is the *how-to-collaborate* layer.
 
 ## What this project is
